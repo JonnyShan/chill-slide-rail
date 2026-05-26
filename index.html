@@ -7734,7 +7734,10 @@ function updatePlayer(dt) {
   }
   if (player.userData.antennaBlinkMat) {
     // Heartbeat blink — 1.4Hz, ramp to 1.0 then quickly fade. Lightning boosts.
-    const bt = (state.elapsed % 0.7) / 0.7;
+    // Combo accelerates heartbeat (1.4Hz → 2.0Hz) — player vitals running hot.
+    const abComboFrac = Math.min(1, (state.combo - 1) / 9);
+    const abPeriod = 0.7 * (1.0 - abComboFrac * 0.25);     // 0.7s → 0.525s
+    const bt = (state.elapsed % abPeriod) / abPeriod;
     const v = bt < 0.18 ? bt / 0.18 : Math.max(0, 1 - (bt - 0.18) / 0.55);
     const lkAB = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
     player.userData.antennaBlinkMat.opacity = Math.min(1, 0.25 + v * 0.75 + lkAB * 0.5);
