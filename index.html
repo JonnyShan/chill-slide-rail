@@ -7739,15 +7739,19 @@ function updatePlayer(dt) {
     }
   }
   // ── SHIELD BUBBLE — show + pulse when shieldHp > 0
+  // Combo lifts pulse rate, spin rate, baseline opacity.
   if (player.userData.shieldBubble) {
     const sb = player.userData.shieldBubble;
     if (state.shieldHp > 0) {
       sb.visible = true;
-      // Two-octave pulse + lightning brighten
       const lkS = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
-      sb.material.opacity = 0.20 + Math.sin(state.elapsed * 6) * 0.10 + Math.sin(state.elapsed * 11) * 0.04 + lkS * 0.35;
+      const sbComboFrac = Math.min(1, (state.combo - 1) / 9);
+      const sbPulseRate = 6 + sbComboFrac * 2.5;
+      const sbSpinRate = 0.6 + sbComboFrac * 0.5;
+      const sbBase = 0.20 + sbComboFrac * 0.05;
+      sb.material.opacity = sbBase + Math.sin(state.elapsed * sbPulseRate) * 0.10 + Math.sin(state.elapsed * 11) * 0.04 + lkS * 0.35;
       sb.scale.setScalar(1 + Math.sin(state.elapsed * 4) * 0.045 + Math.sin(state.elapsed * 9) * 0.015);
-      sb.rotation.y += dt * 0.6;     // slow spin so hex pattern shifts
+      sb.rotation.y += dt * sbSpinRate;     // slow spin so hex pattern shifts
     } else if (sb.visible) {
       sb.visible = false;
       sb.material.opacity = 0;
