@@ -8866,14 +8866,16 @@ function updateCamera(dt) {
 
   // ── CAMERA IDLE BREATHING SWAY — subtle sin oscillation on Y+Z+X for handheld feel.
   // Two layered low-freq oscillators (incommensurate freqs avoid obvious loop).
-  // Scales DOWN inversely with speed — when sprinting flat-out it tapers to near-zero,
-  // when speed is moderate the breathing reads. cameraShake fully overrides via additive on top.
+  // Scales DOWN inversely with speed — when sprinting flat-out it tapers to near-zero.
+  // Combo accelerates breathing freq — operator feels the heat of the run.
   const speedFrac = Math.min(1, state.speed / CFG.SPEED_CAP);
-  const breatheAmp = (1.0 - speedFrac * 0.55);   // 1.0 at low speed -> 0.45 at cap
-  camera.position.y += Math.sin(state.elapsed * 1.35) * 0.045 * breatheAmp;
-  camera.position.y += Math.sin(state.elapsed * 2.21) * 0.018 * breatheAmp;
-  camera.position.x += Math.sin(state.elapsed * 0.83) * 0.03  * breatheAmp;
-  camera.position.z += Math.sin(state.elapsed * 1.07) * 0.025 * breatheAmp;
+  const camComboFrac = Math.min(1, (state.combo - 1) / 9);
+  const breatheAmp = (1.0 - speedFrac * 0.55);
+  const breathRateMul = 1.0 + camComboFrac * 0.35;
+  camera.position.y += Math.sin(state.elapsed * 1.35 * breathRateMul) * 0.045 * breatheAmp;
+  camera.position.y += Math.sin(state.elapsed * 2.21 * breathRateMul) * 0.018 * breatheAmp;
+  camera.position.x += Math.sin(state.elapsed * 0.83 * breathRateMul) * 0.03  * breatheAmp;
+  camera.position.z += Math.sin(state.elapsed * 1.07 * breathRateMul) * 0.025 * breatheAmp;
 
   // shake — pos jitter + roll jitter (rotational kick)
   if (state.cameraShake > 0) {
