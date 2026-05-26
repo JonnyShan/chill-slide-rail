@@ -3822,17 +3822,22 @@ function tickArches(dt, move) {
   }
 }
 function fireCollectFlash(x, y, z) {
+  // Combo lifts flash starting scale + life, and extra sparks count.
+  const cfComboFrac = state ? Math.min(1, (state.combo - 1) / 9) : 0;
+  const cfScale = 1.0 + cfComboFrac * 0.30;             // 1.0 → 1.3
+  const sparkN = 8 + Math.floor(cfComboFrac * 4);       // 8 → 12 extra sparks
+  const sparkLife = 0.5 + cfComboFrac * 0.20;            // 0.5 → 0.7
   for (const r of collectFlashes) {
     if (r.userData.life <= 0) {
       r.position.set(x, y, z);
-      r.scale.set(1, 1, 1);
+      r.scale.set(cfScale, cfScale, cfScale);
       r.material.opacity = 0.95;
       r.visible = true;
-      r.userData.life = r.userData.max;
-      // Also emit 8 wind-streak sparks radially
-      for (let e = 0; e < 8; e++) {
+      r.userData.life = r.userData.max * (1.0 + cfComboFrac * 0.25);
+      // Also emit N wind-streak sparks radially — count + life lift with combo
+      for (let e = 0; e < sparkN; e++) {
         const h = windStreaks.head;
-        const ang = (e / 8) * Math.PI * 2;
+        const ang = (e / sparkN) * Math.PI * 2;
         const wp = windStreaks.geo.attributes.position.array;
         const wc = windStreaks.geo.attributes.color.array;
         const ws = windStreaks.geo.attributes.aSize.array;
@@ -3841,7 +3846,7 @@ function fireCollectFlash(x, y, z) {
         wp[h*3+2] = z + (Math.random() - 0.5) * 0.2;
         wc[h*3+0] = 1.0; wc[h*3+1] = 1.0; wc[h*3+2] = 0.36;
         ws[h] = 14 + Math.random() * 8;
-        windStreaks.life[h] = 0.5;
+        windStreaks.life[h] = sparkLife;
         windStreaks.head = (windStreaks.head + 1) % windStreaks.count;
       }
       return;
