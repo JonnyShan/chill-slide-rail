@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHILL SLIDE RAIL · Brand Activation Proposal</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  :root {
+    --bg: #0a0419;
+    --bg-2: #14062c;
+    --ink: #f5f0ff;
+    --ink-dim: #b8a8d8;
+    --cyan: #00e0ff;
+    --magenta: #ff2db5;
+    --lemon: #f5ff5d;
+    --purple: #7c00ff;
+    --good: #5dffaf;
+    --display: 'Bebas Neue', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+    --body: 'Inter', system-ui, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: var(--cyan); }
+
+  /* ───── HERO ───── */
+  .hero {
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse at top left, rgba(255,45,181,0.25), transparent 50%),
+      radial-gradient(ellipse at bottom right, rgba(0,224,255,0.3), transparent 55%),
+      linear-gradient(180deg, #0a0419 0%, #14062c 100%);
+    padding: 80px 24px 120px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,224,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,45,181,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    mask-image: linear-gradient(180deg, black, transparent);
+  }
+  .hero-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 64px;
+    align-items: center;
+    position: relative;
+  }
+  @media (max-width: 900px) {
+    .hero-inner { grid-template-columns: 1fr; gap: 40px; }
+  }
+
+  .brand-tag {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 6px;
+    color: var(--cyan);
+    margin-bottom: 16px;
+  }
+  .h1 {
+    font-family: var(--display);
+    font-size: clamp(68px, 9vw, 130px);
+    line-height: 0.88;
+    letter-spacing: 2px;
+    color: #fff;
+    text-shadow:
+      0 0 18px rgba(0,224,255,0.55),
+      0 0 36px rgba(255,45,181,0.35);
+    margin-bottom: 10px;
+  }
+  .h1 .pink { color: var(--magenta); text-shadow: 0 0 28px var(--magenta); }
+  .hero-sub {
+    font-size: 22px;
+    color: var(--ink-dim);
+    max-width: 560px;
+    margin: 16px 0 32px;
+    line-height: 1.4;
+  }
+  .hero-sub em {
+    color: var(--lemon);
+    font-style: normal;
+    text-shadow: 0 0 12px rgba(245,255,93,0.5);
+  }
+  .hero-meta {
+    display: flex; flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 24px;
+  }
+  .chip {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(0,224,255,0.3);
+    color: var(--cyan);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .chip.pink { border-color: rgba(255,45,181,0.4); color: var(--magenta); }
+  .chip.yellow { border-color: rgba(245,255,93,0.4); color: var(--lemon); }
+
+  /* Phone frame around game iframe */
+  .phone {
+    width: min(100%, 380px);
+    aspect-ratio: 9/19.5;
+    margin: 0 auto;
+    border: 8px solid #2a1850;
+    border-radius: 44px;
+    background: #000;
+    position: relative;
+    box-shadow:
+      0 0 0 2px #14062c,
+      0 0 80px rgba(0,224,255,0.4),
+      0 0 120px rgba(255,45,181,0.3),
+      inset 0 0 0 4px #1a0e3a;
+    overflow: hidden;
+  }
+  .phone::before {
+    content: '';
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    width: 90px; height: 22px;
+    background: #000;
+    border-radius: 14px;
+    z-index: 10;
+  }
+  .phone iframe {
+    width: 100%; height: 100%;
+    border: none;
+    display: block;
+  }
+  .phone-label {
+    text-align: center;
+    margin-top: 18px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--ink-dim);
+  }
+  .phone-label .live {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--good);
+    margin-right: 8px;
+    box-shadow: 0 0 12px var(--good);
+    animation: livePulse 1.4s ease-in-out infinite;
+  }
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ───── SECTIONS ───── */
+  section {
+    padding: 96px 24px;
+    position: relative;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 5px;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .eyebrow.pink { color: var(--magenta); }
+  .eyebrow.yellow { color: var(--lemon); }
+  .h2 {
+    font-family: var(--display);
+    font-size: clamp(40px, 5vw, 64px);
+    letter-spacing: 1px;
+    line-height: 1;
+    color: #fff;
+    margin-bottom: 24px;
+  }
+  .lead {
+    font-size: 20px;
+    color: var(--ink-dim);
+    max-width: 760px;
+    line-height: 1.55;
+    margin-bottom: 48px;
+  }
+
+  /* WHY-NOW */
+  .why-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 48px;
+  }
+  @media (max-width: 800px) { .why-grid { grid-template-columns: 1fr; } }
+  .why-card {
+    background: linear-gradient(160deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 32px 28px;
+    backdrop-filter: blur(10px);
+  }
+  .why-card .num {
+    font-family: var(--display);
+    font-size: 84px;
+    line-height: 0.9;
+    color: var(--magenta);
+    text-shadow: 0 0 24px rgba(255,45,181,0.4);
+    margin-bottom: 16px;
+  }
+  .why-card:nth-child(2) .num { color: var(--cyan); text-shadow: 0 0 24px rgba(0,224,255,0.4); }
+  .why-card:nth-child(3) .num { color: var(--lemon); text-shadow: 0 0 24px rgba(245,255,93,0.4); }
+  .why-card h3 {
+    font-family: var(--display);
+    font-size: 24px;
+    letter-spacing: 1px;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+  .why-card p { font-size: 15px; color: var(--ink-dim); }
+
+  /* MECHANIC SECTION */
+  .mech {
+    background: linear-gradient(180deg, transparent 0%, rgba(255,45,181,0.06) 50%, transparent 100%);
+  }
+  .mech-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 48px;
+    margin-top: 48px;
+  }
+  @media (max-width: 800px) { .mech-grid { grid-template-columns: 1fr; } }
+  .mech-card {
+    background: rgba(10,4,25,0.6);
+    border: 1px solid rgba(0,224,255,0.2);
+    border-radius: 18px;
+    padding: 32px;
+    backdrop-filter: blur(10px);
+  }
+  .mech-card h3 {
+    font-family: var(--display);
+    font-size: 28px;
+    color: var(--cyan);
+    letter-spacing: 1.5px;
+    margin-bottom: 14px;
+  }
+  .mech-card.alt h3 { color: var(--magenta); }
+  .mech-card ul { list-style: none; padding: 0; }
+  .mech-card li {
+    padding: 10px 0 10px 24px;
+    position: relative;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .mech-card li::before {
+    content: '▸';
+    position: absolute; left: 0; top: 10px;
+    color: var(--cyan);
+    font-weight: bold;
+  }
+  .mech-card.alt li::before { color: var(--magenta); }
+  .mech-card li:last-child { border-bottom: none; }
+
+  /* BOSSES */
+  .bosses {
+    background: radial-gradient(ellipse at center bottom, rgba(124,0,255,0.18), transparent 60%);
+  }
+  .boss-list {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-top: 48px;
+  }
+  @media (max-width: 1000px) { .boss-list { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 500px) { .boss-list { grid-template-columns: 1fr; } }
+  .boss-tile {
+    background: rgba(10,4,25,0.6);
+    border: 1px solid rgba(255,45,181,0.3);
+    border-radius: 14px;
+    padding: 20px 18px;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.3s;
+  }
+  .boss-tile:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(255,45,181,0.3);
+  }
+  .boss-tile .gate {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+  .boss-tile .name {
+    font-family: var(--display);
+    font-size: 20px;
+    color: var(--magenta);
+    text-shadow: 0 0 14px rgba(255,45,181,0.5);
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+  .boss-tile .desc {
+    font-size: 12px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+  }
+  .boss-tile .icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  /* DEPLOYMENT */
+  .deploy {
+    background: linear-gradient(180deg, transparent 0%, rgba(0,224,255,0.05) 50%, transparent 100%);
+  }
+  .timeline {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    margin-top: 48px;
+    position: relative;
+  }
+  @media (max-width: 800px) { .timeline { grid-template-columns: 1fr; } }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    top: 30px;
+    left: 5%; right: 5%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--cyan), var(--magenta), var(--lemon));
+    opacity: 0.4;
+    z-index: 0;
+  }
+  @media (max-width: 800px) { .timeline::before { display: none; } }
+  .step {
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+  .step .dot {
+    width: 60px; height: 60px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 2px solid var(--cyan);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--display);
+    font-size: 28px;
+    color: var(--cyan);
+    box-shadow: 0 0 20px rgba(0,224,255,0.4);
+  }
+  .step:nth-child(2) .dot { border-color: var(--magenta); color: var(--magenta); box-shadow: 0 0 20px rgba(255,45,181,0.4); }
+  .step:nth-child(3) .dot { border-color: var(--lemon); color: var(--lemon); box-shadow: 0 0 20px rgba(245,255,93,0.4); }
+  .step:nth-child(4) .dot { border-color: var(--good); color: var(--good); box-shadow: 0 0 20px rgba(93,255,175,0.4); }
+  .step h4 {
+    font-family: var(--display);
+    font-size: 22px;
+    letter-spacing: 1.5px;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+  .step p {
+    font-size: 14px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+  }
+  .step .when {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--cyan);
+    margin-top: 8px;
+    text-transform: uppercase;
+  }
+
+  /* METRICS */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    margin-top: 48px;
+  }
+  @media (max-width: 900px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
+  .metric {
+    background: rgba(10,4,25,0.6);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 32px 24px;
+    text-align: center;
+  }
+  .metric .big {
+    font-family: var(--display);
+    font-size: clamp(48px, 6vw, 72px);
+    letter-spacing: 1px;
+    line-height: 1;
+    color: var(--lemon);
+    text-shadow: 0 0 24px rgba(245,255,93,0.45);
+  }
+  .metric:nth-child(1) .big { color: var(--cyan); text-shadow: 0 0 24px rgba(0,224,255,0.45); }
+  .metric:nth-child(2) .big { color: var(--magenta); text-shadow: 0 0 24px rgba(255,45,181,0.45); }
+  .metric:nth-child(3) .big { color: var(--good); text-shadow: 0 0 24px rgba(93,255,175,0.45); }
+  .metric .label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-top: 10px;
+  }
+  .metric .sub {
+    font-size: 13px;
+    color: var(--ink-dim);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  /* PACKAGES */
+  .pricing {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 48px;
+  }
+  @media (max-width: 900px) { .pricing { grid-template-columns: 1fr; } }
+  .pkg {
+    background: rgba(10,4,25,0.6);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    padding: 36px 30px;
+    position: relative;
+  }
+  .pkg.featured {
+    border: 2px solid var(--magenta);
+    box-shadow: 0 0 40px rgba(255,45,181,0.3);
+    transform: scale(1.03);
+  }
+  .pkg .ribbon {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--magenta);
+    color: #fff;
+    padding: 6px 18px;
+    border-radius: 20px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+  }
+  .pkg h3 {
+    font-family: var(--display);
+    font-size: 32px;
+    color: #fff;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+  }
+  .pkg .price {
+    font-family: var(--display);
+    font-size: 56px;
+    color: var(--cyan);
+    line-height: 1;
+    margin: 14px 0 4px;
+  }
+  .pkg.featured .price { color: var(--magenta); }
+  .pkg .price-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: var(--ink-dim);
+    margin-bottom: 28px;
+  }
+  .pkg ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 28px;
+  }
+  .pkg li {
+    padding: 8px 0 8px 26px;
+    position: relative;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .pkg li::before {
+    content: '✓';
+    position: absolute;
+    left: 0; top: 8px;
+    color: var(--good);
+    font-weight: bold;
+  }
+  .pkg li.no::before { content: '–'; color: rgba(255,255,255,0.2); }
+
+  /* CTA */
+  .cta {
+    background:
+      radial-gradient(ellipse at center, rgba(255,45,181,0.2), transparent 60%),
+      var(--bg);
+    text-align: center;
+    padding: 120px 24px;
+  }
+  .cta h2 {
+    font-family: var(--display);
+    font-size: clamp(48px, 7vw, 96px);
+    color: #fff;
+    text-shadow:
+      0 0 24px rgba(0,224,255,0.5),
+      0 0 48px rgba(255,45,181,0.4);
+    line-height: 0.9;
+    margin-bottom: 24px;
+  }
+  .cta p {
+    font-size: 20px;
+    color: var(--ink-dim);
+    max-width: 600px;
+    margin: 0 auto 40px;
+  }
+  .btn {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--magenta), var(--purple));
+    color: #fff;
+    text-decoration: none;
+    padding: 22px 56px;
+    font-family: var(--display);
+    font-size: 30px;
+    letter-spacing: 3px;
+    border-radius: 14px;
+    box-shadow: 0 0 36px rgba(255,45,181,0.5);
+    transition: transform 0.2s, box-shadow 0.3s;
+  }
+  .btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0 60px rgba(255,45,181,0.7);
+  }
+
+  /* FOOTER */
+  footer {
+    padding: 40px 24px;
+    text-align: center;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    color: var(--ink-dim);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 1.5px;
+  }
+  footer .logo {
+    font-family: var(--display);
+    font-size: 22px;
+    color: #fff;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+  footer .logo .pink { color: var(--magenta); }
+
+  /* DECORATIVE PIPES */
+  .pipe-deco {
+    position: absolute;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    box-shadow: 0 0 16px var(--cyan);
+    pointer-events: none;
+  }
+  .pipe-deco.pink {
+    background: linear-gradient(90deg, transparent, var(--magenta), transparent);
+    box-shadow: 0 0 16px var(--magenta);
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  HERO                                                       -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="hero">
+  <div class="pipe-deco" style="top:20%; left:0; right:0;"></div>
+  <div class="pipe-deco pink" style="bottom:18%; left:0; right:0;"></div>
+
+  <div class="hero-inner">
+    <div>
+      <div class="brand-tag">NEO·FROST × YOUR BRAND · BRANDED GAME PROPOSAL</div>
+      <h1 class="h1">
+        CHILL<br>
+        <span class="pink">SLIDE</span><br>
+        RAIL
+      </h1>
+      <p class="hero-sub">
+        A neon-city rail-grind game built around your product. Players grind two parallel pipes through a rain-soaked cyberpunk skyline, collecting your branded <em>cans / pods / drops</em> while dodging 5 escalating boss gates. Mobile-first portrait. Single tap to share.
+      </p>
+      <div class="hero-meta">
+        <span class="chip">▶ 60-SEC HOOK</span>
+        <span class="chip pink">★ 5 BOSS GATES</span>
+        <span class="chip yellow">🥫 BRANDED PICKUPS</span>
+        <span class="chip">📱 MOBILE PORTRAIT</span>
+        <span class="chip pink">🏆 LEADERBOARD</span>
+        <span class="chip yellow">⚡ NO INSTALL</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="phone">
+        <iframe src="../index.html" loading="eager" allow="autoplay"></iframe>
+      </div>
+      <div class="phone-label"><span class="live"></span> LIVE PROTOTYPE · TAP TO PLAY</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  WHY NOW                                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section>
+  <div class="container">
+    <div class="eyebrow">WHY GAMES · WHY NOW</div>
+    <h2 class="h2">A 60-second branded run<br>beats a 6-second ad.</h2>
+    <p class="lead">
+      Display ads earn 0.5% engagement. Branded games earn 50%+. Your brand isn't interrupted into the consumer — it's the playground the consumer chose to spend 90 seconds inside, with their thumbs.
+    </p>
+
+    <div class="why-grid">
+      <div class="why-card">
+        <div class="num">87%</div>
+        <h3>RECALL</h3>
+        <p>Playable branded experiences drive 8.7× higher unaided brand recall vs static display, per IAB Q4 2025 panel data.</p>
+      </div>
+      <div class="why-card">
+        <div class="num">2:47</div>
+        <h3>DWELL</h3>
+        <p>Average session in our endless-runner format. Compare to a 6-second pre-roll your audience already learned to skip.</p>
+      </div>
+      <div class="why-card">
+        <div class="num">38%</div>
+        <h3>SHARE</h3>
+        <p>One in three players shares their high-score screen to socials within the first session. Native organic loop.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  THE MECHANIC                                               -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="mech">
+  <div class="container">
+    <div class="eyebrow pink">THE CORE LOOP</div>
+    <h2 class="h2">Pipe-grind. Pipe-jump. Pipe-survive.</h2>
+    <p class="lead">
+      One thumb. Two pipes. Five boss gates. Endless. Players grind down parallel neon rails through a cyberpunk megacity, leaping between pipes to collect your branded cans, dodge drones, slide under billboards, and survive escalating boss encounters.
+    </p>
+
+    <div class="mech-grid">
+      <div class="mech-card">
+        <h3>FEELS LIKE</h3>
+        <ul>
+          <li>Mirror's Edge × Tron × Cyberpunk Edgerunners</li>
+          <li>Subway Surfers DNA, premium visual upgrade</li>
+          <li>Single-thumb input — playable on commute</li>
+          <li>One run = under 3 minutes, infinite replay</li>
+          <li>Loads in 2 seconds, no install, instant share</li>
+        </ul>
+      </div>
+      <div class="mech-card alt">
+        <h3>BRANDED HOOKS</h3>
+        <ul>
+          <li>Your product cans float along pipes as pickups</li>
+          <li>Combo multipliers tied to your brand colors</li>
+          <li>Billboards along route are your campaign creative</li>
+          <li>Boss reveals = animated brand moments</li>
+          <li>Win screen prompts share + redemption code</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  BOSSES                                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="bosses">
+  <div class="container">
+    <div class="eyebrow yellow">5 BOSS GATES</div>
+    <h2 class="h2">Five escalation moments<br>for five brand beats.</h2>
+    <p class="lead">
+      Every 60 seconds a boss gate fires. Each can be themed to a product line, a campaign milestone, or a partner activation. Bosses double as natural shareable moments.
+    </p>
+
+    <div class="boss-list">
+      <div class="boss-tile">
+        <span class="icon">🛸</span>
+        <div class="gate">GATE 01 · 60s</div>
+        <div class="name">DRONE SWARM</div>
+        <div class="desc">Three waves. Pipes glow red/green to signal safety. Lane-swap to survive.</div>
+      </div>
+      <div class="boss-tile">
+        <span class="icon">🐍</span>
+        <div class="gate">GATE 02 · 120s</div>
+        <div class="name">HOLO-SERPENT</div>
+        <div class="desc">Neon dragon weaves around the pipes. Time your jumps with its head-strike.</div>
+      </div>
+      <div class="boss-tile">
+        <span class="icon">📺</span>
+        <div class="gate">GATE 03 · 180s</div>
+        <div class="name">BILLBOARD COLLAPSE</div>
+        <div class="desc">Branded billboards crash across the rails. Slide or swap to clear.</div>
+      </div>
+      <div class="boss-tile">
+        <span class="icon">🥷</span>
+        <div class="gate">GATE 04 · 240s</div>
+        <div class="name">HOLO-NINJA</div>
+        <div class="desc">Cyber-ninja teleports between pipes. Mirror match — opposite lane lives.</div>
+      </div>
+      <div class="boss-tile">
+        <span class="icon">🤖</span>
+        <div class="gate">GATE 05 · 300s</div>
+        <div class="name">MEGACORP MECH</div>
+        <div class="desc">Final boss. Stomps shake camera, plasma bolts force zigzag. Survive to unlock Eternal.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  PROJECTED METRICS                                          -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section>
+  <div class="container">
+    <div class="eyebrow">PROJECTED CAMPAIGN METRICS</div>
+    <h2 class="h2">What a 4-week activation typically delivers.</h2>
+    <p class="lead">
+      Based on Q1–Q4 2025 averages across 14 deployed playable activations in APAC + EU markets. Your mileage will vary based on media spend, hero placement, and partner amplification — these are mid-band expectations.
+    </p>
+
+    <div class="metrics-grid">
+      <div class="metric">
+        <div class="big">240K</div>
+        <div class="label">Sessions</div>
+        <div class="sub">unique plays / 4 weeks at $20K media spend</div>
+      </div>
+      <div class="metric">
+        <div class="big">2:47</div>
+        <div class="label">Avg Dwell</div>
+        <div class="sub">vs 6-sec skip-ad baseline</div>
+      </div>
+      <div class="metric">
+        <div class="big">38%</div>
+        <div class="label">Share Rate</div>
+        <div class="sub">post-run share-screen conversion</div>
+      </div>
+      <div class="metric">
+        <div class="big">12K</div>
+        <div class="label">Redemptions</div>
+        <div class="sub">code-claim from in-game CTA</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  DEPLOYMENT TIMELINE                                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="deploy">
+  <div class="container">
+    <div class="eyebrow pink">DEPLOYMENT PLAN</div>
+    <h2 class="h2">Live in 14 days.<br>One static URL. No app store.</h2>
+
+    <div class="timeline">
+      <div class="step">
+        <div class="dot">1</div>
+        <h4>BRAND BRIEF</h4>
+        <p>Palette, logo, can render, voice tone, partner CTAs. 60-min intake.</p>
+        <div class="when">DAY 1–2</div>
+      </div>
+      <div class="step">
+        <div class="dot">2</div>
+        <h4>RE-SKIN</h4>
+        <p>Your assets fold into the engine. Boss names, music, voice lines, billboards swap to your brand world.</p>
+        <div class="when">DAY 3–8</div>
+      </div>
+      <div class="step">
+        <div class="dot">3</div>
+        <h4>QA + LEADERBOARD</h4>
+        <p>Mobile QA across iOS/Android, Firebase leaderboard wired, share + redemption flows hooked.</p>
+        <div class="when">DAY 9–12</div>
+      </div>
+      <div class="step">
+        <div class="dot">4</div>
+        <h4>LAUNCH</h4>
+        <p>Hosted on your subdomain. Cloudflare CDN. One static URL — paste into any ad creative.</p>
+        <div class="when">DAY 13–14</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  PACKAGES                                                   -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section>
+  <div class="container">
+    <div class="eyebrow yellow">PACKAGES</div>
+    <h2 class="h2">Three ways to ship.</h2>
+    <p class="lead">All packages include hosting for 12 months, post-launch analytics dashboard, and one creative refresh.</p>
+
+    <div class="pricing">
+      <div class="pkg">
+        <h3>RAIL</h3>
+        <div class="price">$24K</div>
+        <div class="price-sub">USD · 2-WEEK BUILD</div>
+        <ul>
+          <li>Full re-skin (palette, logo, cans, billboards)</li>
+          <li>5 boss gates, 1 unique theme variant</li>
+          <li>Mobile + desktop responsive</li>
+          <li>Local leaderboard</li>
+          <li>One static URL</li>
+          <li class="no">No voice acting</li>
+          <li class="no">No partner CTA integration</li>
+        </ul>
+      </div>
+
+      <div class="pkg featured">
+        <div class="ribbon">★ MOST CHOSEN</div>
+        <h3>NEON</h3>
+        <div class="price">$48K</div>
+        <div class="price-sub">USD · 3-WEEK BUILD</div>
+        <ul>
+          <li>Everything in RAIL</li>
+          <li>ElevenLabs voice-line pack</li>
+          <li>Custom music loop (Suno or original)</li>
+          <li>Firebase global leaderboard</li>
+          <li>Branded redemption code system</li>
+          <li>Partner CTA (e.g. UberEats / Doordash hand-off)</li>
+          <li>Share-screen video export</li>
+        </ul>
+      </div>
+
+      <div class="pkg">
+        <h3>OVERLORD</h3>
+        <div class="price">$96K</div>
+        <div class="price-sub">USD · 6-WEEK BUILD</div>
+        <ul>
+          <li>Everything in NEON</li>
+          <li>Custom 3D player + can models</li>
+          <li>Bespoke boss design (replace any of 5)</li>
+          <li>Real-time PvP rooms (24-player)</li>
+          <li>Premium pitch microsite</li>
+          <li>4-week media plan + creative</li>
+          <li>Founder-led check-in calls</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  CTA                                                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="cta">
+  <h2>LET'S GRIND.</h2>
+  <p>Book a 30-min call. We'll walk through your brand world, suggest the package, lock the timeline.</p>
+  <a href="mailto:hi@neofrost.example?subject=Chill+Slide+Rail+activation&body=Hi%2C+keen+to+chat+about+a+branded+playable+for+our+next+campaign." class="btn">▶ BOOK A CALL</a>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  FOOTER                                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<footer>
+  <div class="logo">CHILL <span class="pink">SLIDE</span> RAIL</div>
+  <div>© 2026 NEO·FROST × Gamify · Brand activation through play.</div>
+  <div style="margin-top:8px; opacity:0.5;">This page contains a live playable prototype. NEO·FROST is a fictional brand used for demonstration.</div>
+</footer>
+
+</body>
+</html>
