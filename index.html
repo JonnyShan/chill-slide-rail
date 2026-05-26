@@ -8646,9 +8646,13 @@ function updateWorld(dt) {
     }
     if (city.spireMat) {
       const c = city.spireMat.color;
-      c.r += (0.020 - c.r) * 0.18;
-      c.g += (0.012 - c.g) * 0.18;
-      c.b += (0.059 - c.b) * 0.18;
+      // Combo lifts spire tint floor — mirrors distant silhouette warm glow.
+      const tgtR = 0.020 + ltFloorComboFrac * 0.04;     // 0.020 → 0.060
+      const tgtG = 0.012 + ltFloorComboFrac * 0.02;     // 0.012 → 0.032
+      const tgtB = 0.059 + ltFloorComboFrac * 0.05;     // 0.059 → 0.109
+      c.r += (tgtR - c.r) * 0.18;
+      c.g += (tgtG - c.g) * 0.18;
+      c.b += (tgtB - c.b) * 0.18;
     }
   }
   lightning.nextAt -= dt;
