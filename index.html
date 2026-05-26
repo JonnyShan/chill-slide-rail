@@ -8456,11 +8456,12 @@ function updateWorld(dt) {
       return;
     }
     if (street.hazePlanes.includes(ch)) {
-      // haze drifts toward player slowly
+      // haze drifts toward player slowly. Combo accelerates drift rate + lateral sway.
+      const hzComboFrac = Math.min(1, (state.combo - 1) / 9);
       ch.position.z += move * 0.3;
       if (ch.position.z > 30) ch.position.z = ch.userData.baseZ - 90;
-      ch.userData.drift += dt * 0.4;
-      ch.position.x = Math.sin(ch.userData.drift) * 4;
+      ch.userData.drift += dt * (0.4 + hzComboFrac * 0.35);
+      ch.position.x = Math.sin(ch.userData.drift) * (4 + hzComboFrac * 1.5);
       return;
     }
     if (puddleSet && puddleSet.has(ch)) {

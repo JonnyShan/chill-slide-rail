@@ -1,5 +1,5 @@
 // Service worker — cache-first for game shell, network-first for everything else.
-const CACHE = 'chill-slide-rail-v224';
+const CACHE = 'chill-slide-rail-v225';
 const SHELL = ['./', './index.html', './manifest.webmanifest'];
 
 self.addEventListener('install', e => {
