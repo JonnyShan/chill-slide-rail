@@ -9041,11 +9041,12 @@ function updateAmbient(dt) {
     dust.geo.attributes.position.needsUpdate = true;
   }
   // Pipe-base mist — scroll + billow + face camera. Density syncs with 40s
-  // rainCycle so mist thickens during heavy-rain phases (~1.5x at peak).
+  // rainCycle. Combo lifts density bonus on top of rain (mist thickens on streak).
   if (pipeMist) {
     const mMove = -dt * (state.speed || CFG.START_SPEED);
     const rainCycle = rain.mat.uniforms.uAmp.value;     // 0.45 - 1.55
-    const mistDensity = 0.7 + (rainCycle - 1.0) * 0.6;  // 0.34 idle, 1.03 peak
+    const mistCombo = Math.min(1, (state.combo - 1) / 9);
+    const mistDensity = (0.7 + (rainCycle - 1.0) * 0.6) * (1.0 + mistCombo * 0.30);
     for (const p of pipeMist.planes) {
       p.position.z -= mMove;
       if (p.position.z > 30) p.position.z = p.userData.baseZ - 180;
