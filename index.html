@@ -5685,49 +5685,191 @@ function spawnObstacle(type, lane, zDist) {
 
 // CANS
 const cans = [];
+// ── KIRIN HYOKETSU LEMON LABEL TEXTURE — procedural canvas paint.
+// Diagonal blue/silver split, KIRIN HYOKETSU wordmark, 氷結 kanji, LEMON yellow
+// pill banner, half-lemon glyph, ice droplet hints. Cached single texture.
+let __kirinLabelTex = null;
+function makeKirinLabelTexture() {
+  if (__kirinLabelTex) return __kirinLabelTex;
+  const W = 512, H = 256;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+
+  // Base silver/frost background
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0.0, '#e8eef5');
+  bgGrad.addColorStop(0.5, '#f4f8fc');
+  bgGrad.addColorStop(1.0, '#d6dde5');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Diagonal blue half (top-left wraps around to back). Repeat 4x so cylinder wrap
+  // shows blue/silver split on every visible angle.
+  const tile = W / 4;
+  for (let i = 0; i < 4; i++) {
+    const x0 = i * tile;
+    const blueGrad = ctx.createLinearGradient(x0, 0, x0 + tile, H);
+    blueGrad.addColorStop(0.0, '#0c2f8a');
+    blueGrad.addColorStop(0.5, '#1745bd');
+    blueGrad.addColorStop(1.0, '#0c2f8a');
+    ctx.fillStyle = blueGrad;
+    // Diagonal split — fill left-top triangle
+    ctx.beginPath();
+    ctx.moveTo(x0, 0);
+    ctx.lineTo(x0 + tile, 0);
+    ctx.lineTo(x0 + tile * 0.55, H);
+    ctx.lineTo(x0, H);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // KIRIN HYOKETSU wordmark — white sans, on blue. 4 repeats around cylinder.
+  ctx.font = 'bold 38px "Helvetica Neue", Arial, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < 4; i++) {
+    const cx = i * tile + tile * 0.27;
+    ctx.fillText('KIRIN', cx, H * 0.30);
+    ctx.fillText('HYOKETSU', cx, H * 0.50);
+  }
+
+  // 氷結 kanji red box accent — top-right of each tile (on silver side)
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < 4; i++) {
+    const cx = i * tile + tile * 0.72;
+    ctx.fillRect(cx - 22, H * 0.22 - 18, 44, 36);
+  }
+  ctx.font = 'bold 26px "Helvetica Neue", Arial, sans-serif';
+  ctx.fillStyle = '#bf1b25';
+  for (let i = 0; i < 4; i++) {
+    const cx = i * tile + tile * 0.72;
+    ctx.fillText('氷結', cx, H * 0.22);
+  }
+
+  // Yellow LEMON pill banner — wraps fully around middle
+  const lemY = H * 0.62;
+  const lemH = H * 0.13;
+  ctx.fillStyle = '#fcd736';
+  ctx.fillRect(0, lemY, W, lemH);
+  ctx.font = 'bold 28px "Helvetica Neue", Arial, sans-serif';
+  ctx.fillStyle = '#0c2f8a';
+  for (let i = 0; i < 4; i++) {
+    ctx.fillText('LEMON', i * tile + tile * 0.27, lemY + lemH * 0.55);
+  }
+
+  // Half-lemon yellow circle on silver side (each tile)
+  for (let i = 0; i < 4; i++) {
+    const cx = i * tile + tile * 0.74;
+    const cy = H * 0.84;
+    const r = 22;
+    // Outer rind
+    ctx.fillStyle = '#f5b800';
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    // Pulp
+    ctx.fillStyle = '#fce26b';
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.78, 0, Math.PI * 2); ctx.fill();
+    // 8 segment wedges
+    ctx.strokeStyle = '#f5b800';
+    ctx.lineWidth = 1.2;
+    for (let s = 0; s < 8; s++) {
+      const a = (s / 8) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a) * r * 0.78, cy + Math.sin(a) * r * 0.78);
+      ctx.stroke();
+    }
+  }
+
+  // 6% ALC/VOL · 330mL bottom-left of each tile
+  ctx.font = 'bold 10px "Helvetica Neue", Arial, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < 4; i++) {
+    ctx.fillText('6% · 330mL', i * tile + tile * 0.17, H * 0.95);
+  }
+
+  // Random ice droplet specks scattered across whole label
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  for (let d = 0; d < 90; d++) {
+    const x = Math.random() * W;
+    const y = Math.random() * H;
+    const r = 1.0 + Math.random() * 2.2;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  __kirinLabelTex = tex;
+  return tex;
+}
+
 function makeCan() {
   const g = new THREE.Group();
-  // Body
+  // Slim 330mL aluminum can — taller + narrower for Kirin Hyoketsu proportions.
+  // Wrapped canvas texture handles full label paint (KIRIN HYOKETSU + LEMON + lemon glyph).
+  const labelTex = makeKirinLabelTexture();
   const body = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.16, 0.16, 0.42, 14),
+    new THREE.CylinderGeometry(0.13, 0.13, 0.55, 28),
     new THREE.MeshStandardMaterial({
-      color: 0xddeeff, metalness: 0.85, roughness: 0.28,
-      emissive: 0x88ccff, emissiveIntensity: 0.18
+      map: labelTex,
+      color: 0xffffff,
+      metalness: 0.55,
+      roughness: 0.32,
+      emissive: 0xffffff,
+      emissiveMap: labelTex,
+      emissiveIntensity: 0.35,    // self-glow so label reads in gloom
     })
   );
   g.add(body);
-  // Label (lemon stripe + emissive)
-  const labelMat = new THREE.MeshStandardMaterial({
-    color: CFG.C_LEMON, emissive: CFG.C_LEMON, emissiveIntensity: 1.2,
-    metalness: 0.3, roughness: 0.4
-  });
-  const label = new THREE.Mesh(new THREE.CylinderGeometry(0.165, 0.165, 0.2, 14), labelMat);
-  g.add(label);
-  // top
+  // Aluminum top — bevel disc, classic can lid
   const top = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.15, 0.16, 0.04, 14),
-    new THREE.MeshStandardMaterial({ color: 0xaabbcc, metalness: 0.95, roughness: 0.2 })
+    new THREE.CylinderGeometry(0.115, 0.13, 0.045, 28),
+    new THREE.MeshStandardMaterial({ color: 0xc8d2dd, metalness: 0.95, roughness: 0.18 })
   );
-  top.position.y = 0.23;
+  top.position.y = 0.295;
   g.add(top);
-  // glow halo
+  // Inner ring at top (recessed lip)
+  const topInset = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.1, 0.105, 0.012, 24),
+    new THREE.MeshStandardMaterial({ color: 0x8a96a4, metalness: 0.9, roughness: 0.35 })
+  );
+  topInset.position.y = 0.31;
+  g.add(topInset);
+  // Pull-tab — small dark slot
+  const pullTab = new THREE.Mesh(
+    new THREE.BoxGeometry(0.07, 0.005, 0.02),
+    new THREE.MeshStandardMaterial({ color: 0x5a6470, metalness: 0.9, roughness: 0.4 })
+  );
+  pullTab.position.y = 0.318;
+  g.add(pullTab);
+  // Aluminum bottom bevel
+  const btm = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.115, 0.13, 0.04, 24),
+    new THREE.MeshStandardMaterial({ color: 0xb5bfcb, metalness: 0.9, roughness: 0.30 })
+  );
+  btm.position.y = -0.295;
+  g.add(btm);
+  // glow halo — soft cyan-yellow tint blends Kirin blue + lemon yellow
   const halo = new THREE.Mesh(
-    new THREE.SphereGeometry(0.36, 10, 8),
+    new THREE.SphereGeometry(0.42, 12, 10),
     new THREE.MeshBasicMaterial({
-      color: CFG.C_LEMON, transparent: true, opacity: 0.18,
+      color: 0xfcd736, transparent: true, opacity: 0.16,
       blending: THREE.AdditiveBlending, depthWrite: false
     })
   );
   g.add(halo);
-  // Sparkle ring on top — 6 small sprites rotating around can top, animated phase
-  // (was 4 — bumped for richer sparkle density)
+  // Sparkle ring — 6 yellow droplets orbiting top
   const sparkleGroup = new THREE.Group();
-  sparkleGroup.position.y = 0.32;
+  sparkleGroup.position.y = 0.40;
   for (let s = 0; s < 6; s++) {
     const sp = new THREE.Mesh(
       new THREE.SphereGeometry(0.040, 6, 6),
       new THREE.MeshBasicMaterial({
-        color: CFG.C_LEMON, transparent: true, opacity: 0.95,
+        color: 0xfcd736, transparent: true, opacity: 0.95,
         blending: THREE.AdditiveBlending, depthWrite: false,
       })
     );
