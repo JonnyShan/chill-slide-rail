@@ -8178,6 +8178,13 @@ function updateWorld(dt) {
     const divPulse = Math.sin(state.elapsed * (2.5 + divSpd * 1.5)) * 0.08;
     street.dividerMat.opacity = Math.min(1, 0.55 + divSpd * 0.15 + divCombo * 0.12 + divPulse);
   }
+  // Low ground fog strip — magenta wash; combo lifts opacity baseline + sin pulse.
+  if (street.fogStrip && street.fogStrip.material) {
+    const fsCombo = Math.min(1, (state.combo - 1) / 9);
+    const fsLk = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
+    const fsBreath = 0.15 + Math.sin(state.elapsed * 0.9) * 0.025 + fsCombo * 0.06 + fsLk * 0.10;
+    street.fogStrip.material.opacity = Math.min(0.45, fsBreath);
+  }
   // Crosswalk bars — combo + lightning lift opacity. Stripes flash with storm.
   if (street.crosswalkMat) {
     const cwCombo = Math.min(1, (state.combo - 1) / 9);
