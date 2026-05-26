@@ -9309,7 +9309,9 @@ function updateAmbient(dt) {
   filmPass.uniforms.uGlitch._timer -= dt;
   if (filmPass.uniforms.uGlitch._timer <= 0 && filmPass.uniforms.uGlitch._burstLife <= 0) {
     filmPass.uniforms.uGlitch._burstLife = 0.16 + Math.random() * 0.12;
-    filmPass.uniforms.uGlitch._timer = 7 + Math.random() * 6;
+    // Combo compresses glitch window 7-13s → ~3-6s (sky+system "stressed" on streak)
+    const glComboFrac = Math.min(1, (state.combo - 1) / 9);
+    filmPass.uniforms.uGlitch._timer = (7 + Math.random() * 6) * (1.0 - glComboFrac * 0.55);
   }
   if (filmPass.uniforms.uGlitch._burstLife > 0) {
     filmPass.uniforms.uGlitch._burstLife -= dt;
