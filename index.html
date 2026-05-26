@@ -2688,7 +2688,7 @@ function makeStreet() {
     puddles.push(p);
   }
 
-  return { road, hazePlanes, fogStrip, group, puddles, puddleMat, fogVolumes, fogVolumeMat, pipeShadowL, pipeShadowR, curbMat, dividerMat, crosswalkMat };
+  return { road, hazePlanes, fogStrip, group, puddles, puddleMat, fogVolumes, fogVolumeMat, pipeShadowL, pipeShadowR, curbMat, dividerMat, crosswalkMat, manholeMat };
 }
 const street = makeStreet();
 
@@ -8178,6 +8178,12 @@ function updateWorld(dt) {
     const cwCombo = Math.min(1, (state.combo - 1) / 9);
     const cwLk = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
     street.crosswalkMat.opacity = Math.min(1, 0.78 + cwCombo * 0.08 + cwLk * 0.20);
+  }
+  // Manhole covers — emissive cyan glow stays subtle; combo + lightning lift it.
+  if (street.manholeMat) {
+    const mhCombo = Math.min(1, (state.combo - 1) / 9);
+    const mhLk = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
+    street.manholeMat.emissiveIntensity = 0.18 + mhCombo * 0.10 + mhLk * 0.25;
   }
   cityWrap(city.antennas, 600, move);
   cityWrap(city.blinks, 600, move);
