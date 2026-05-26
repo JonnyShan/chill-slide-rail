@@ -8502,13 +8502,17 @@ function updateWorld(dt) {
   const carTrailLife = 1.0 + carSpdFrac * 0.7 + carComboFrac * 0.5;       // 1.0 → 2.2  (~2x dwell)
   const carTrailSize = 12 * (1.0 + carSpdFrac * 0.4);                     // 12 → 16.8 (~40% thicker)
   const carColorBoost = 1.0 + carComboFrac * 0.4;                         // 1.0 → 1.4 hotter saturation
+  // Combo accelerates car forward velocity multiplier — world races with player.
+  const carVzMul = (1 + state.speed / 60) * (1.0 + carComboFrac * 0.20);
+  // Combo also adds subtle Z-roll wobble (cars buffeted by player's slipstream)
+  const carRollWobble = carComboFrac * 0.04;
   for (const car of hovercars) {
     const u = car.userData;
     u.phase += dt * 0.6;
     car.position.x += u.vx * dt;
     car.position.y += Math.sin(u.phase) * dt * carBobAmp;
-    car.position.z += u.vz * dt * (1 + state.speed / 60);
-    car.rotation.z = -u.vx * 0.04;
+    car.position.z += u.vz * dt * carVzMul;
+    car.rotation.z = -u.vx * 0.04 + Math.sin(u.phase * 1.7) * carRollWobble;
 
     // Emit one smoke particle at engine (rear of car)
     const h = carSmoke.head;
