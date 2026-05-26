@@ -2684,7 +2684,7 @@ function makeStreet() {
     puddles.push(p);
   }
 
-  return { road, hazePlanes, fogStrip, group, puddles, puddleMat, fogVolumes, fogVolumeMat, pipeShadowL, pipeShadowR };
+  return { road, hazePlanes, fogStrip, group, puddles, puddleMat, fogVolumes, fogVolumeMat, pipeShadowL, pipeShadowR, curbMat };
 }
 const street = makeStreet();
 
@@ -8154,6 +8154,13 @@ function updateWorld(dt) {
     const stripBase = 0.85 + stripComboFrac * 0.08;
     const stripPulse = Math.sin(state.elapsed * (3 + stripComboFrac * 1.5)) * 0.06 * (0.5 + stripComboFrac * 0.5);
     city.strips.material.opacity = Math.min(1, stripBase + stripPulse + stripLk * 0.10);
+  }
+  // Street curb emissive — speed + combo lift cyan glow as player accelerates.
+  if (street.curbMat) {
+    const curbSpd = Math.min(1, state.speed / CFG.SPEED_CAP);
+    const curbCombo = Math.min(1, (state.combo - 1) / 9);
+    const curbLk = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
+    street.curbMat.emissiveIntensity = 0.28 + curbSpd * 0.18 + curbCombo * 0.14 + curbLk * 0.30;
   }
   cityWrap(city.antennas, 600, move);
   cityWrap(city.blinks, 600, move);
