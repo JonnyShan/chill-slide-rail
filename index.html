@@ -7741,14 +7741,16 @@ function updatePlayer(dt) {
   }
   // ── AFTERBURNERS — ramp opacity + length with speed fraction.
   // Below 55% cap = invisible. Above = flame grows. Flicker via sin for plasma-jet feel.
+  // Combo extends flame length further + brightens core (afterburners pop on streak).
   if (player.userData.afterburners) {
     const spdFrac = Math.max(0, Math.min(1, (state.speed / CFG.SPEED_CAP - 0.55) / 0.45));
+    const abComboFrac = Math.min(1, (state.combo - 1) / 9);
     const flicker = 0.85 + Math.sin(state.elapsed * 38) * 0.10 + Math.sin(state.elapsed * 23) * 0.05;
     for (const ab of player.userData.afterburners) {
       ab.plumeMat.opacity = 0.78 * spdFrac * flicker;
-      ab.coreMat.opacity  = 0.92 * spdFrac * flicker;
-      // Stretch length with speed — base scale 1.0, push toward 1.6 at cap
-      const lenScale = 1.0 + spdFrac * 0.6 * flicker;
+      ab.coreMat.opacity  = 0.92 * spdFrac * flicker * (1.0 + abComboFrac * 0.15);
+      // Stretch length — combo adds extra extension on top of speed
+      const lenScale = 1.0 + (spdFrac + abComboFrac * 0.4) * 0.6 * flicker;
       ab.plume.scale.set(1.0, lenScale, 1.0);
       ab.core.scale.set(1.0, lenScale * 0.9, 1.0);
     }
