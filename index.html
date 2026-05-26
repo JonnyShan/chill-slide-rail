@@ -8114,11 +8114,15 @@ function updateWorld(dt) {
     if (p.position.z > 12) { scene.remove(p); powerups.splice(i, 1); }
   }
 
-  // billboards drift + animate scrolling marquee on the "animated" ones
-  billboardAnimState.scrollOffset = (billboardAnimState.scrollOffset + dt * 60) % 256;
+  // billboards drift + animate scrolling marquee on the "animated" ones.
+  // Combo accelerates marquee scroll + glyph swap rate (city signs run faster on streak).
+  const bbAnimCombo = Math.min(1, (state.combo - 1) / 9);
+  const bbScrollRate = 60 + bbAnimCombo * 35;                                  // 60 → 95 px/s
+  billboardAnimState.scrollOffset = (billboardAnimState.scrollOffset + dt * bbScrollRate) % 256;
   billboardAnimState.glyphTimer += dt;
-  if (billboardAnimState.glyphTimer > 0.45) {
-    billboardAnimState.glyphTimer -= 0.45;
+  const bbGlyphPeriod = 0.45 * (1.0 - bbAnimCombo * 0.30);                     // 0.45s → 0.315s
+  if (billboardAnimState.glyphTimer > bbGlyphPeriod) {
+    billboardAnimState.glyphTimer -= bbGlyphPeriod;
     billboardAnimState.glyphIdx++;
   }
   for (const bb of billboards) {
