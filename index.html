@@ -8582,12 +8582,16 @@ function updateWorld(dt) {
     rim.intensity += (rimFloor - rim.intensity) * 0.1;
     if (typeof lightL !== 'undefined') lightL.intensity += (laneFloor - lightL.intensity) * 0.1;
     if (typeof lightR !== 'undefined') lightR.intensity += (laneFloor - lightR.intensity) * 0.1;
-    // Distant silhouette colors decay back toward dark base
+    // Distant silhouette colors decay back toward dark base.
+    // Combo lifts floor toward muted lavender — skyline keeps subtle hot tint on streak.
     if (city.matDistant) {
       const c = city.matDistant.color;
-      c.r += (0.039 - c.r) * 0.18;     // 0x0a/255
-      c.g += (0.020 - c.g) * 0.18;     // 0x05/255
-      c.b += (0.094 - c.b) * 0.18;     // 0x18/255
+      const tgtR = 0.039 + ltFloorComboFrac * 0.05;     // 0.039 → 0.089
+      const tgtG = 0.020 + ltFloorComboFrac * 0.02;     // 0.020 → 0.040
+      const tgtB = 0.094 + ltFloorComboFrac * 0.06;     // 0.094 → 0.154
+      c.r += (tgtR - c.r) * 0.18;
+      c.g += (tgtG - c.g) * 0.18;
+      c.b += (tgtB - c.b) * 0.18;
     }
     if (city.spireMat) {
       const c = city.spireMat.color;
