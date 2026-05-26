@@ -8147,6 +8147,14 @@ function updateWorld(dt) {
   cityWrap(city.instNear, 600, move);
   cityWrap(city.instFar, 700, move * 0.55);   // far parallax slower
   cityWrap(city.strips, 600, move);
+  // Rooftop neon strips — combo lifts opacity baseline + adds sin pulse (rooftops hype on streak).
+  if (city.strips && city.strips.material) {
+    const stripComboFrac = Math.min(1, (state.combo - 1) / 9);
+    const stripLk = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
+    const stripBase = 0.85 + stripComboFrac * 0.08;
+    const stripPulse = Math.sin(state.elapsed * (3 + stripComboFrac * 1.5)) * 0.06 * (0.5 + stripComboFrac * 0.5);
+    city.strips.material.opacity = Math.min(1, stripBase + stripPulse + stripLk * 0.10);
+  }
   cityWrap(city.antennas, 600, move);
   cityWrap(city.blinks, 600, move);
   // Lightning brightens building + pyramid + mast emissive for storm response.
