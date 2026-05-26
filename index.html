@@ -3133,23 +3133,27 @@ function makeWindStreaks() {
 }
 const windStreaks = makeWindStreaks();
 function burstNearMissStreaks() {
-  // Emit 14 streaks in a fan radiating from player — bright + saturated
-  const N = 14;
+  // Emit 14 streaks in fan radiating from player — bright + saturated.
+  // Combo boosts count (14→22), size (18-28→24-36), life (0.7→1.0), magenta bias at high combo.
+  const wsComboFrac = state ? Math.min(1, (state.combo - 1) / 9) : 0;
+  const N = 14 + Math.floor(wsComboFrac * 8);
   const wp = windStreaks.geo.attributes.position.array;
   const wc = windStreaks.geo.attributes.color.array;
   const ws = windStreaks.geo.attributes.aSize.array;
+  const sizeBase = 18 + wsComboFrac * 6;
+  const lifeBoost = 0.7 + wsComboFrac * 0.3;
   for (let e = 0; e < N; e++) {
     const h = windStreaks.head;
     const ang = (e / N) * Math.PI * 2;
     wp[h*3+0] = player.position.x + Math.cos(ang) * 0.4;
     wp[h*3+1] = player.position.y + Math.sin(ang) * 0.4 + 0.3;
     wp[h*3+2] = player.position.z + (Math.random() - 0.5) * 0.4;
-    // Bright cyan-white burst
-    wc[h*3+0] = 0.95 + Math.random() * 0.05;
-    wc[h*3+1] = 0.98 + Math.random() * 0.02;
+    // Bright cyan-white burst; combo biases toward hot magenta-pink
+    wc[h*3+0] = (0.95 + Math.random() * 0.05) + wsComboFrac * 0.05;
+    wc[h*3+1] = (0.98 + Math.random() * 0.02) * (1.0 - wsComboFrac * 0.30);
     wc[h*3+2] = 1.0;
-    ws[h] = 18 + Math.random() * 10;
-    windStreaks.life[h] = 0.7;
+    ws[h] = sizeBase + Math.random() * 10;
+    windStreaks.life[h] = lifeBoost;
     windStreaks.head = (windStreaks.head + 1) % windStreaks.count;
   }
 }
