@@ -2395,10 +2395,12 @@ function makeStreet() {
   group.add(makeStripe(CFG.C_MAGENTA,  3.6, 0.5));
   group.add(makeStripe(CFG.C_LEMON,    0.0, 0.32));
 
-  // Lane edge dividers (4 short emissive lines on each side, instanced visually via stride)
+  // Lane edge dividers (4 short emissive lines on each side, instanced visually via stride).
+  // Shared mat — combo + speed lift opacity per frame for "racing strips" feel.
   const dividerMat = new THREE.MeshBasicMaterial({
     color: 0xddeeff, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending,
   });
+  dividerMat._isDivider = true;
   for (let z = 0; z > -560; z -= 18) {
     for (const lx of [-7, 7]) {
       const div = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 4), dividerMat);
@@ -2684,7 +2686,7 @@ function makeStreet() {
     puddles.push(p);
   }
 
-  return { road, hazePlanes, fogStrip, group, puddles, puddleMat, fogVolumes, fogVolumeMat, pipeShadowL, pipeShadowR, curbMat };
+  return { road, hazePlanes, fogStrip, group, puddles, puddleMat, fogVolumes, fogVolumeMat, pipeShadowL, pipeShadowR, curbMat, dividerMat };
 }
 const street = makeStreet();
 
@@ -8161,6 +8163,13 @@ function updateWorld(dt) {
     const curbCombo = Math.min(1, (state.combo - 1) / 9);
     const curbLk = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
     street.curbMat.emissiveIntensity = 0.28 + curbSpd * 0.18 + curbCombo * 0.14 + curbLk * 0.30;
+  }
+  // Lane edge dividers — opacity scales with speed + combo + sin pulse (racing-strip feel).
+  if (street.dividerMat) {
+    const divSpd = Math.min(1, state.speed / CFG.SPEED_CAP);
+    const divCombo = Math.min(1, (state.combo - 1) / 9);
+    const divPulse = Math.sin(state.elapsed * (2.5 + divSpd * 1.5)) * 0.08;
+    street.dividerMat.opacity = Math.min(1, 0.55 + divSpd * 0.15 + divCombo * 0.12 + divPulse);
   }
   cityWrap(city.antennas, 600, move);
   cityWrap(city.blinks, 600, move);
