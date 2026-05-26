@@ -9282,12 +9282,20 @@ function updateAmbient(dt) {
     fw.pts.material.opacity = Math.max(0, fw.life / fw.max);
     if (fw.life <= 0) fw.pts.visible = false;
   }
-  // Cloud layers — slow sideways drift, gentle vertical sway
+  // Cloud layers — slow sideways drift, gentle vertical sway.
+  // Combo accelerates drift + lightning lifts opacity (clouds glow during storm).
   if (cloudLayers.length) {
+    const clComboFrac = Math.min(1, (state.combo - 1) / 9);
+    const clDriftMul = 1.0 + clComboFrac * 0.45;
+    const clLk = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
     for (const cl of cloudLayers) {
-      cl.position.x += dt * cl.userData.speed * 0.5;
+      cl.position.x += dt * cl.userData.speed * 0.5 * clDriftMul;
       if (cl.position.x > 220) cl.position.x = -220;
       cl.position.y = cl.userData.baseY + Math.sin(state.elapsed * 0.2 + cl.userData.speed) * 1.4;
+      if (cl.material && cl.userData.baseOp == null) cl.userData.baseOp = cl.material.opacity;
+      if (cl.material && cl.userData.baseOp != null) {
+        cl.material.opacity = Math.min(1, cl.userData.baseOp + clComboFrac * 0.06 + clLk * 0.25);
+      }
     }
   }
   // Billboard godray beams — speed-reactive opacity pulse + sin breath.
