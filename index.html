@@ -3845,15 +3845,17 @@ function fireCollectFlash(x, y, z) {
   }
 }
 function fireImpactRing(x, y, z, colorHex = CFG.C_CYAN) {
-  // Pick first idle ring
+  // Pick first idle ring. Combo extends ring life + initial scale (rings grow bigger on streak).
+  const irComboFrac = state ? Math.min(1, (state.combo - 1) / 9) : 0;
+  const irScale = 1.0 + irComboFrac * 0.30;             // 1.0 → 1.3 starting scale
   for (const r of impactRings) {
     if (r.userData.life <= 0) {
       r.position.set(x, y, z);
-      r.scale.set(1, 1, 1);
+      r.scale.set(irScale, irScale, irScale);
       r.material.color.setHex(colorHex);
       r.material.opacity = 0.95;
       r.visible = true;
-      r.userData.life = r.userData.max;
+      r.userData.life = r.userData.max * (1.0 + irComboFrac * 0.25);   // life +25% at peak
       return;
     }
   }
