@@ -2411,10 +2411,12 @@ function makeStreet() {
 
   // ── CROSSWALKS — 6 emissive bar arrays at intervals along road.
   // Each crosswalk = 8 thin perpendicular cyan bars. Reflects in mirror road.
+  // Shared mat — combo + lightning lift per frame.
   const crosswalkMat = new THREE.MeshBasicMaterial({
     color: 0xddeeff, transparent: true, opacity: 0.78,
     blending: THREE.AdditiveBlending, depthWrite: false,
   });
+  crosswalkMat._isCrosswalk = true;
   const crosswalkGeo = new THREE.BoxGeometry(0.65, 0.04, 9);
   for (let cwIdx = 0; cwIdx < 6; cwIdx++) {
     const cwZ = -50 - cwIdx * 95 - Math.random() * 20;
@@ -2686,7 +2688,7 @@ function makeStreet() {
     puddles.push(p);
   }
 
-  return { road, hazePlanes, fogStrip, group, puddles, puddleMat, fogVolumes, fogVolumeMat, pipeShadowL, pipeShadowR, curbMat, dividerMat };
+  return { road, hazePlanes, fogStrip, group, puddles, puddleMat, fogVolumes, fogVolumeMat, pipeShadowL, pipeShadowR, curbMat, dividerMat, crosswalkMat };
 }
 const street = makeStreet();
 
@@ -8170,6 +8172,12 @@ function updateWorld(dt) {
     const divCombo = Math.min(1, (state.combo - 1) / 9);
     const divPulse = Math.sin(state.elapsed * (2.5 + divSpd * 1.5)) * 0.08;
     street.dividerMat.opacity = Math.min(1, 0.55 + divSpd * 0.15 + divCombo * 0.12 + divPulse);
+  }
+  // Crosswalk bars — combo + lightning lift opacity. Stripes flash with storm.
+  if (street.crosswalkMat) {
+    const cwCombo = Math.min(1, (state.combo - 1) / 9);
+    const cwLk = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
+    street.crosswalkMat.opacity = Math.min(1, 0.78 + cwCombo * 0.08 + cwLk * 0.20);
   }
   cityWrap(city.antennas, 600, move);
   cityWrap(city.blinks, 600, move);
