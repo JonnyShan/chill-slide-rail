@@ -9363,10 +9363,12 @@ function updateAmbient(dt) {
   const invulnFlicker = state.invuln > 0 ? Math.sin(state.elapsed * 30) * 0.25 : 0;
   bounceFill.color.copy(hemi.userData.bounceMix);
   bounceFill.intensity = (0.22 + bSpdFrac * 0.12 + bComboFrac * 0.10) + Math.sin(state.elapsed * (0.9 + bSpdFrac * 0.7)) * 0.08 + ltBounce + invulnFlicker;
-  // Speed-line intensity ramps in above 28 m/s
+  // Speed-line intensity ramps in above 28 m/s. Combo lowers threshold (lines kick in earlier on streak).
   const sp = state.speed || CFG.START_SPEED;
+  const slComboFrac = Math.min(1, (state.combo - 1) / 9);
+  const slThresh = 28 - slComboFrac * 6;     // 28 → 22 m/s onset
   const sLineTarget = state.mode === 'playing'
-    ? Math.max(0, Math.min(1.0, (sp - 28) / 14))
+    ? Math.max(0, Math.min(1.0, (sp - slThresh) / 14))
     : 0;
   speedLinePass.uniforms.uIntensity.value += (sLineTarget - speedLinePass.uniforms.uIntensity.value) * 0.06;
   filmPass.uniforms.uTime.value = performance.now() * 0.001;
