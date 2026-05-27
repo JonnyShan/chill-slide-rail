@@ -8799,7 +8799,12 @@ function updateWorld(dt) {
   const carVzMul = (1 + state.speed / 60) * (1.0 + carComboFrac * 0.20);
   // Combo also adds subtle Z-roll wobble (cars buffeted by player's slipstream)
   const carRollWobble = carComboFrac * 0.04;
-  for (const car of hovercars) {
+  // PERF — at tier 2, animate half the hovercars per frame (alternate parity).
+  // 26 cars total; each one's bob/smoke updates at 30Hz which is invisible.
+  const carParity = qualityTier >= 2 ? (cubeFrameCounter & 1) : -1;
+  for (let ci = 0; ci < hovercars.length; ci++) {
+    if (carParity >= 0 && (ci & 1) === carParity) continue;
+    const car = hovercars[ci];
     const u = car.userData;
     u.phase += dt * 0.6;
     car.position.x += u.vx * dt;
@@ -9022,10 +9027,11 @@ function updateWorld(dt) {
   // ── CUBE REFLECTION PROBE — refresh every N frames per quality tier:
   //   tier 0 (high): every 10 frames (~6Hz reflections)
   //   tier 1 (med):  every 16 frames (~3.75Hz)
-  //   tier 2 (low):  every 28 frames (~2Hz, almost a static-ish reflection)
+  //   tier 2 (low):  disabled entirely — falls back to baseline PMREM env on pipes.
+  //                  Saves a full extra scene render per refresh on weakest hardware.
   cubeFrameCounter++;
-  const cubeInterval = qualityTier === 0 ? 10 : qualityTier === 1 ? 16 : 28;
-  if (cubeFrameCounter % cubeInterval === 0) {
+  const cubeInterval = qualityTier === 0 ? 10 : qualityTier === 1 ? 16 : 0;
+  if (cubeInterval > 0 && cubeFrameCounter % cubeInterval === 0) {
     pipes.forEach(p => p.group.visible = false);
     player.visible = false;
     cubeCam.position.set(player.position.x * 0.3, player.position.y + 1.5, 0);
@@ -9717,6 +9723,10 @@ function updateAmbient(dt) {
   const bloomTierMul = qualityTier === 0 ? 1.0 : qualityTier === 1 ? 0.78 : 0.55;
   const targetBloom = (CFG.BLOOM_STRENGTH + spdBoost + comboBoost) * bloomTierMul;
   bloom.strength += (targetBloom - bloom.strength) * 0.05;
+  // SMAA disabled at tier 2 — full fullscreen pass, ~1-2ms on weak GPUs.
+  // Tradeoff is visible jaggies on emissive edges, but tier 2 already lowers DPR
+  // which softens edges anyway so the delta is small.
+  if (smaaPass.enabled !== (qualityTier < 2)) smaaPass.enabled = qualityTier < 2;
 }
 
 // ╔════════════════════════════════════════════════════════════╗
