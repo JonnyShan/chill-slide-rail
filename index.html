@@ -790,6 +790,29 @@ const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/
               || (navigator.maxTouchPoints > 1 && window.innerWidth < 900);
 const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
+// ── ADAPTIVE QUALITY TIER (0 high, 1 med, 2 low). Auto-detect on init, then
+// escalates if rolling FPS drops sustained below threshold. Drives cube probe
+// refresh interval + bloom strength.
+const lowCpu = (navigator.hardwareConcurrency || 4) <= 4;
+let qualityTier = (isMobile || lowCpu) ? 1 : 0;
+const fpsSamples = new Float32Array(60);
+let fpsIdx = 0, fpsCount = 0, fpsCheckCooldown = 120;
+function avgFps() {
+  if (fpsCount === 0) return 60;
+  let s = 0;
+  for (let i = 0; i < fpsCount; i++) s += fpsSamples[i];
+  return s / fpsCount;
+}
+function updateQualityTier(instFps) {
+  fpsSamples[fpsIdx++ % 60] = instFps;
+  if (fpsCount < 60) fpsCount++;
+  if (--fpsCheckCooldown > 0) return;
+  const a = avgFps();
+  if (a < 38 && qualityTier < 2) { qualityTier++; fpsCheckCooldown = 240; }
+  else if (a > 56 && qualityTier > 0) { qualityTier--; fpsCheckCooldown = 360; }
+  else fpsCheckCooldown = 60;
+}
+
 // ╔════════════════════════════════════════════════════════════╗
 // ║  STATE                                                     ║
 // ╚════════════════════════════════════════════════════════════╝
@@ -5518,10 +5541,20 @@ function makeDrone() {
   groundStripe.rotation.x = -Math.PI / 2;
   groundStripe.position.set(0, -1.30, 2.2); // ground stripe below drone body
   g.add(groundStripe);
+  // VERTICAL LIGHT PILLAR — red, marks DUCK. Anchored to drone body (floats with it).
+  const pillar = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.18, 5.5),
+    new THREE.MeshBasicMaterial({
+      color: 0xff3344, transparent: true, opacity: 0.55,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    })
+  );
+  pillar.position.y = 2.4;
+  g.add(pillar);
   g.userData = {
     type: OB_TYPES.DRONE, rotors, w: 0.65, h: 0.4, ground: 1.2,
     halo: halo.material, warnRing: warnRing.material,
-    arrow: arrowMat, groundStripe: groundStripe.material,
+    arrow: arrowMat, groundStripe: groundStripe.material, pillar: pillar.material,
   };
   return g;
 }
@@ -5591,10 +5624,20 @@ function makeFan() {
   groundStripe.rotation.x = -Math.PI / 2;
   groundStripe.position.set(0, -0.55, 2.2);
   g.add(groundStripe);
+  // VERTICAL LIGHT PILLAR — magenta marks LANE SWAP from afar.
+  const pillar = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.22, 5.5),
+    new THREE.MeshBasicMaterial({
+      color: 0xff3ad8, transparent: true, opacity: 0.55,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    })
+  );
+  pillar.position.y = 3.2;
+  g.add(pillar);
   g.userData = {
     type: OB_TYPES.FAN, blades: bladeAssembly, w: 1.0, h: 1.0, ground: 0,
     streakDisc: streakDisc.material, hub: hub.material,
-    arrow: xMat, groundStripe: groundStripe.material,
+    arrow: xMat, groundStripe: groundStripe.material, pillar: pillar.material,
   };
   return g;
 }
@@ -5711,9 +5754,19 @@ function makeBarrier() {
   floorStripe.rotation.x = -Math.PI / 2;
   floorStripe.position.y = -0.15;
   g.add(floorStripe);
+  // VERTICAL LIGHT PILLAR — red, tall, marks DUCK from a distance.
+  const pillar = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.20, 5.5),
+    new THREE.MeshBasicMaterial({
+      color: 0xff3344, transparent: true, opacity: 0.55,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    })
+  );
+  pillar.position.y = 3.5;
+  g.add(pillar);
   g.userData = {
     type: OB_TYPES.BARRIER, w: 1.0, h: 0.9, ground: 0, light, bar: beam, sign, lampGlow,
-    arrow: arrowMat, groundStripe: groundStripe.material,
+    arrow: arrowMat, groundStripe: groundStripe.material, pillar: pillar.material,
   };
   return g;
 }
@@ -5788,10 +5841,21 @@ function makeLowBar() {
   groundStripe.rotation.x = -Math.PI / 2;
   groundStripe.position.set(0, -0.18, 2.2); // extend in +Z (toward player on screen)
   g.add(groundStripe);
+  // VERTICAL LIGHT PILLAR — tall thin emissive bar shoots upward so the obstacle
+  // reads from very far away. Cyan-green = jump. Wider on Y to fight perspective falloff.
+  const pillar = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.18, 5.5),
+    new THREE.MeshBasicMaterial({
+      color: 0x66ffaa, transparent: true, opacity: 0.55,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    })
+  );
+  pillar.position.y = 3.0;
+  g.add(pillar);
   g.userData = {
     type: OB_TYPES.LOW_BAR, w: 1.0, h: 0.5, ground: 0,
     beacon: beacon.material, halo: halo.material,
-    arrow: arrowMat, groundStripe: groundStripe.material,
+    arrow: arrowMat, groundStripe: groundStripe.material, pillar: pillar.material,
   };
   return g;
 }
@@ -8132,8 +8196,8 @@ function updateWorld(dt) {
       const lit = (Math.floor(state.elapsed * 6) % 2) === 0;
       o.userData.light.intensity = lit ? 3 : 0.5;
     }
-    // CLARITY — pulse big floating arrow + ground telegraph stripe on every
-    // obstacle that exposes them. Quick sine breath keeps the glyph "alive"
+    // CLARITY — pulse big floating arrow + ground telegraph stripe + vertical pillar
+    // on every obstacle that exposes them. Quick sine breath keeps the glyph "alive"
     // so peripheral vision picks it up before the obstacle fills the screen.
     if (o.userData.arrow) {
       o.userData.arrow.opacity = 0.72 + Math.sin(state.elapsed * 8 + i * 1.3) * 0.25;
@@ -8143,6 +8207,13 @@ function updateWorld(dt) {
       const proximity = Math.max(0, Math.min(1, (12 + o.position.z) / 24)); // 1 far, 0 near
       const breath = 0.18 + Math.sin(state.elapsed * 6 + i) * 0.10;
       o.userData.groundStripe.opacity = breath + (1 - proximity) * 0.22;
+    }
+    if (o.userData.pillar) {
+      // Pillar breathing — bright at distance so player reads it from far,
+      // softens as obstacle fills frame (arrow + ground stripe take over).
+      const proximity = Math.max(0, Math.min(1, (12 + o.position.z) / 24));
+      const breath = Math.sin(state.elapsed * 4 + i * 0.7) * 0.12;
+      o.userData.pillar.opacity = 0.38 + proximity * 0.42 + breath;
     }
     // Yaw obstacle to face along pipe tangent for grounded look
     const tdx = pathDX(olz2);
@@ -8892,10 +8963,13 @@ function updateWorld(dt) {
     }
   }
 
-  // ── CUBE REFLECTION PROBE — refresh every 10 frames (was 6). At 60Hz that's ~6Hz
-  // reflection updates — still feels responsive on slow camera motion, big perf win.
+  // ── CUBE REFLECTION PROBE — refresh every N frames per quality tier:
+  //   tier 0 (high): every 10 frames (~6Hz reflections)
+  //   tier 1 (med):  every 16 frames (~3.75Hz)
+  //   tier 2 (low):  every 28 frames (~2Hz, almost a static-ish reflection)
   cubeFrameCounter++;
-  if (cubeFrameCounter % 10 === 0) {
+  const cubeInterval = qualityTier === 0 ? 10 : qualityTier === 1 ? 16 : 28;
+  if (cubeFrameCounter % cubeInterval === 0) {
     pipes.forEach(p => p.group.visible = false);
     player.visible = false;
     cubeCam.position.set(player.position.x * 0.3, player.position.y + 1.5, 0);
@@ -9583,7 +9657,9 @@ function updateAmbient(dt) {
   // Combo-reactive bloom — bigger combo = brighter halo. Visible feedback for skill.
   // combo x1 -> 0, x2 -> 0.04, x5 -> 0.16, x10 -> 0.36 (cap).
   const comboBoost = Math.min(0.36, (state.combo - 1) * 0.04);
-  const targetBloom = CFG.BLOOM_STRENGTH + spdBoost + comboBoost;
+  // Quality tier scales bloom strength target (tier0 1.0, tier1 0.78, tier2 0.55).
+  const bloomTierMul = qualityTier === 0 ? 1.0 : qualityTier === 1 ? 0.78 : 0.55;
+  const targetBloom = (CFG.BLOOM_STRENGTH + spdBoost + comboBoost) * bloomTierMul;
   bloom.strength += (targetBloom - bloom.strength) * 0.05;
 }
 
@@ -9611,6 +9687,9 @@ let lastT = performance.now();
 function loop(now) {
   const rawDt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
+  // ── ADAPTIVE QUALITY — sample instantaneous FPS, escalate/de-escalate tier.
+  // Skipped when dt is suspicious (tab returned from background = huge dt spike).
+  if (rawDt > 0.005 && rawDt < 0.040) updateQualityTier(1 / rawDt);
   // ── TIME-SLOW — when state.timeSlow > 0, scale dt down. Decays linearly.
   let timeScale = 1.0;
   if (state.timeSlow > 0) {
@@ -9686,6 +9765,16 @@ function loop(now) {
   }
   // 4) Render full scene + mix bloom in + post-fx
   composer.render();
+  // ── LOADER SNAP — kill the fake progress bar on first successful render.
+  // Perceived load = actual load instead of fake_anim + real_load. Big perceived-speed win.
+  if (!window.__csrLoaderHidden) {
+    window.__csrLoaderHidden = true;
+    if ($loader) {
+      if ($loaderBar) $loaderBar.style.width = '100%';
+      $loader.classList.add('gone');
+      setTimeout(() => { try { $loader.remove(); } catch (e) {} }, 350);
+    }
+  }
   requestAnimationFrame(loop);
 }
 
@@ -9728,7 +9817,8 @@ camera.lookAt(0, 1, -8);
 composer.render();
 
 requestAnimationFrame(loop);
-tickLoader();
+// tickLoader() removed — loader now snaps to 100 on first composer.render() inside loop.
+// Keeps fake-bar code below for reference/fallback but no longer scheduled.
 
 // expose for debugging in console
 window.__CSR = { state, scene, camera, player, pipes, obstacles, cans, CFG };
