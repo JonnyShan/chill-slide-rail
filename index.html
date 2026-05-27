@@ -6103,8 +6103,22 @@ function makeCan() {
   return g;
 }
 
+// ── CAN POOL — cans alloc 8-10 sub-meshes each spawn, cluster of 5-9 every ~1.5s.
+// That's ~50 alloc/min during play; GC pressure shows as periodic stutter. Recycle
+// instead. Reset transient userData on checkout.
+const canPool = [];
+function checkoutCan() {
+  if (canPool.length) {
+    const c = canPool.pop();
+    c.userData.collected = false;
+    c.userData.spin = c.userData.spin || 0;
+    return c;
+  }
+  return makeCan();
+}
+function returnCan(c) { canPool.push(c); }
 function spawnCan(lane, zDist) {
-  const c = makeCan();
+  const c = checkoutCan();
   c.position.set(CFG.LANE_X[lane], CFG.PLAYER_Y_BASE + 0.7, -zDist);
   c.userData.lane = lane;
   c.userData.baseY = c.position.y;
@@ -6155,8 +6169,23 @@ function makePowerup(typeKey) {
   g.userData = { spin: 0, halo, core, type: typeKey, tdef };
   return g;
 }
+// Powerup pool by type.
+const powerupPool = { MAGNET: [], SHIELD: [], SCORE2X: [] };
+function checkoutPowerup(typeKey) {
+  const free = powerupPool[typeKey];
+  if (free && free.length) {
+    const m = free.pop();
+    m.userData.collected = false;
+    return m;
+  }
+  return makePowerup(typeKey);
+}
+function returnPowerup(p) {
+  const k = p.userData.type;
+  if (powerupPool[k]) powerupPool[k].push(p);
+}
 function spawnPowerup(typeKey, lane, zDist) {
-  const m = makePowerup(typeKey);
+  const m = checkoutPowerup(typeKey);
   m.position.set(CFG.LANE_X[lane], CFG.PLAYER_Y_BASE + 0.9, -zDist);
   m.userData.lane = lane;
   scene.add(m);
@@ -6543,6 +6572,7 @@ class BossBase {
       const c = cans[i];
       if (-c.position.z < 80) {
         scene.remove(c);
+        returnCan(c);
         cans.splice(i, 1);
       }
     }
@@ -7461,9 +7491,9 @@ function cleanupWorld() {
   for (const o of obstacles) { scene.remove(o); returnObstacle(o); }
   obstacles.length = 0;
   markNonBloomDirty();
-  for (const c of cans) scene.remove(c);
+  for (const c of cans) { scene.remove(c); returnCan(c); }
   cans.length = 0;
-  for (const p of powerups) scene.remove(p);
+  for (const p of powerups) { scene.remove(p); returnPowerup(p); }
   powerups.length = 0;
   if (state.currentBoss) {
     state.currentBoss.cleanup();
@@ -8213,7 +8243,12 @@ function updateWorld(dt) {
       // softens as obstacle fills frame (arrow + ground stripe take over).
       const proximity = Math.max(0, Math.min(1, (12 + o.position.z) / 24));
       const breath = Math.sin(state.elapsed * 4 + i * 0.7) * 0.12;
-      o.userData.pillar.opacity = 0.38 + proximity * 0.42 + breath;
+      // OWN-LANE BRIGHT — pillar in player's current lane glows brighter so the
+      // obstacle that actually requires action stands out. Other-lane stays visible
+      // but recedes.
+      const ownLane = o.userData.lane === state.lane ? 1 : 0;
+      const laneMul = 0.55 + ownLane * 0.55; // 0.55 other / 1.10 own
+      o.userData.pillar.opacity = (0.38 + proximity * 0.42 + breath) * laneMul;
     }
     // Yaw obstacle to face along pipe tangent for grounded look
     const tdx = pathDX(olz2);
@@ -8284,13 +8319,17 @@ function updateWorld(dt) {
           && Math.abs(c.position.y - player.position.y - 0.7) < 1.0) {
         collectCan(c);
         scene.remove(c);
+        returnCan(c);
         cans.splice(i, 1);
+        markNonBloomDirty();
         continue;
       }
     }
     if (c.position.z > 12) {
       scene.remove(c);
+      returnCan(c);
       cans.splice(i, 1);
+      markNonBloomDirty();
     }
   }
 
@@ -8329,11 +8368,18 @@ function updateWorld(dt) {
         // City power surge — powerup pickup broadcasts uLightning flash
         lightning.flashLife = Math.max(lightning.flashLife, 0.25);
         scene.remove(p);
+        returnPowerup(p);
         powerups.splice(i, 1);
+        markNonBloomDirty();
         continue;
       }
     }
-    if (p.position.z > 12) { scene.remove(p); powerups.splice(i, 1); }
+    if (p.position.z > 12) {
+      scene.remove(p);
+      returnPowerup(p);
+      powerups.splice(i, 1);
+      markNonBloomDirty();
+    }
   }
 
   // billboards drift + animate scrolling marquee on the "animated" ones.
@@ -9684,6 +9730,12 @@ window.addEventListener('resize', () => {
 // ╚════════════════════════════════════════════════════════════╝
 
 let lastT = performance.now();
+// Reset lastT when tab regains focus so the first frame back doesn't carry
+// a multi-minute dt accumulation. rAF naturally pauses while hidden; this just
+// keeps the first-frame-back dt sane.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) lastT = performance.now();
+});
 function loop(now) {
   const rawDt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
