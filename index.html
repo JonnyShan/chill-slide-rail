@@ -8229,14 +8229,24 @@ function updateWorld(dt) {
     // CLARITY — pulse big floating arrow + ground telegraph stripe + vertical pillar
     // on every obstacle that exposes them. Quick sine breath keeps the glyph "alive"
     // so peripheral vision picks it up before the obstacle fills the screen.
+    // Own-lane + close = faster pulse so urgency cue ramps with proximity.
+    const oOwnLane = o.userData.lane === state.lane;
+    const oCloseOwn = oOwnLane && o.position.z > -8 ? Math.min(1, (o.position.z + 8) / 8) : 0;
     if (o.userData.arrow) {
-      o.userData.arrow.opacity = 0.72 + Math.sin(state.elapsed * 8 + i * 1.3) * 0.25;
+      const arrowFreq = 8 + oCloseOwn * 10;     // 8Hz → 18Hz urgency
+      o.userData.arrow.opacity = (0.72 + Math.sin(state.elapsed * arrowFreq + i * 1.3) * 0.25) * (1 + oCloseOwn * 0.3);
     }
     if (o.userData.groundStripe) {
       // Brighter when obstacle is close (telegraph reads stronger as it approaches).
       const proximity = Math.max(0, Math.min(1, (12 + o.position.z) / 24)); // 1 far, 0 near
-      const breath = 0.18 + Math.sin(state.elapsed * 6 + i) * 0.10;
-      o.userData.groundStripe.opacity = breath + (1 - proximity) * 0.22;
+      const ownLane = o.userData.lane === state.lane;
+      // OWN-LANE URGENCY — within 8 units AND in player's lane, ground stripe
+      // pulses at 14Hz (vs 6Hz idle) and brightens hard. Sells "act NOW".
+      const closeOwn = ownLane && o.position.z > -8 ? Math.min(1, (o.position.z + 8) / 8) : 0;
+      const pulseFreq = 6 + closeOwn * 8;     // 6Hz → 14Hz urgency
+      const breath = 0.18 + Math.sin(state.elapsed * pulseFreq + i) * 0.10;
+      const urgencyBoost = closeOwn * 0.35;
+      o.userData.groundStripe.opacity = breath + (1 - proximity) * 0.22 + urgencyBoost;
     }
     if (o.userData.pillar) {
       // Pillar breathing — bright at distance so player reads it from far,
