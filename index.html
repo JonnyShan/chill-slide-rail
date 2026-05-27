@@ -981,7 +981,12 @@ function buildEnvMap() {
   tex.dispose();
   return rt.texture;
 }
-scene.environment = buildEnvMap();
+// LOAD-TIME DEFER — PMREM generates 6 cube faces + mipmap chain (~50-100ms).
+// Skip at init; build after the first composer.render() inside the loop so the
+// loader paints + first frame ships before this expensive sync work fires.
+// One- or two-frame matte flash on reflective materials before env arrives is
+// imperceptible. See deferredEnvBuild() trigger in main loop.
+let envMapBuilt = false;
 
 // ── LIVE CUBE REFLECTION PROBE — refreshes pipe envMap with real city reflections.
 // Res dropped 768 -> 384 (~4x cheaper). Refresh interval also bumped 6 -> 10 frames
@@ -9855,6 +9860,17 @@ function loop(now) {
       if ($loaderBar) $loaderBar.style.width = '100%';
       $loader.classList.add('gone');
       setTimeout(() => { try { $loader.remove(); } catch (e) {} }, 350);
+    }
+    // DEFERRED PMREM ENV BUILD — schedule after first frame so loader can hide
+    // before we spend ~50-100ms generating the env map. setTimeout(0) yields
+    // to browser paint first.
+    if (!envMapBuilt) {
+      setTimeout(() => {
+        try {
+          scene.environment = buildEnvMap();
+          envMapBuilt = true;
+        } catch (e) { /* ignore */ }
+      }, 0);
     }
   }
   requestAnimationFrame(loop);
