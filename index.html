@@ -8506,6 +8506,12 @@ function updateWorld(dt) {
       city.crowdInst.material.emissiveIntensity = 0.15 + crowdComboFrac * 0.20 + cheerWave + lk * 0.85;
     }
   }
+  // PERF — at quality tier 2, animate only half the panels per frame (alternate
+  // even/odd indices). Each panel still updates at 30Hz which reads identically;
+  // CPU cost halved for the two heaviest city loops (graffiti + windowPanels).
+  // Position scroll still runs every frame so panels don't drift out of sync.
+  const tier2Skip = qualityTier >= 2;
+  const skipParity = tier2Skip ? (cubeFrameCounter & 1) : -1;
   // graffiti: each plane scrolls individually so distribution stays even.
   // Lightning brightens graffiti during strikes. Speed accelerates flicker rate.
   // Combo lifts opacity too.
@@ -8514,10 +8520,12 @@ function updateWorld(dt) {
     const gfSpdFrac = Math.min(1, state.speed / CFG.SPEED_CAP);
     const gfComboFrac = Math.min(1, (state.combo - 1) / 9);
     const gfFreq = 3.0 + gfSpdFrac * 2.0 + gfComboFrac * 1.5;     // 3Hz idle, up to 6.5Hz peak (combo stacks)
-    for (const gf of city.graffiti) {
+    for (let gi = 0; gi < city.graffiti.length; gi++) {
+      const gf = city.graffiti[gi];
       gf.position.z += move;
       if (gf.position.z > 30) gf.position.z -= 620;
-      // subtle flicker (live neon paint) + lightning + combo + speed-reactive
+      // Tier-2 skip: half the panels per frame (still smooth at 30Hz each).
+      if (tier2Skip && (gi & 1) === skipParity) continue;
       gf.material.opacity = 0.75 + Math.sin(state.elapsed * gfFreq + gf.userData.baseZ * 0.1) * 0.15 + lkG * 0.25 + gfComboFrac * 0.15;
     }
   }
@@ -8529,9 +8537,11 @@ function updateWorld(dt) {
     const wpComboFrac = Math.min(1, (state.combo - 1) / 9);
     const wpFreq = 4.0 + wpSpdFrac * 2.5 + wpComboFrac * 1.5;     // 4Hz idle, up to 8.0Hz sprint+combo
     const wpBase = 0.78 + wpComboFrac * 0.06;                     // 0.78 → 0.84
-    for (const wp of city.windowPanels) {
+    for (let wpi = 0; wpi < city.windowPanels.length; wpi++) {
+      const wp = city.windowPanels[wpi];
       wp.position.z += move;
       if (wp.position.z > 30) wp.position.z -= 660;
+      if (tier2Skip && (wpi & 1) === skipParity) continue;
       wp.material.opacity = wpBase + Math.sin(state.elapsed * wpFreq + wp.userData.flickerPhase) * 0.18 + lkWP * 0.35;
     }
   }
