@@ -771,9 +771,10 @@ const CFG = {
   C_PURPLE: 0x7c00ff,
   C_DANGER: 0xff3860,
   C_GOOD: 0x5dffaf,
-  // Mobile perf
-  MOBILE_DPR_MAX: 1.5,
-  DESKTOP_DPR_MAX: 2.0,
+  // Mobile perf — capped lower than before to keep frame budget under control on mid-range GPUs.
+  // Visual delta is minor (SMAA still smooths jaggies); FPS delta is large on high-DPR retina.
+  MOBILE_DPR_MAX: 1.25,
+  DESKTOP_DPR_MAX: 1.6,
 };
 
 // Hoisted: PATH_K / TWO_PI declared early so pipe-shadow vertex bake in
@@ -960,8 +961,10 @@ function buildEnvMap() {
 scene.environment = buildEnvMap();
 
 // ── LIVE CUBE REFLECTION PROBE — refreshes pipe envMap with real city reflections.
-// Res bumped 512 -> 768 for sharper neon reflections in pipe chrome + wet road.
-const cubeRT = new THREE.WebGLCubeRenderTarget(768, {
+// Res dropped 768 -> 384 (~4x cheaper). Refresh interval also bumped 6 -> 10 frames
+// in render loop. Reflections still readable on chrome pipes / wet road but the
+// frame-time saved per cube refresh is the difference between buttery and stuttery on mid GPUs.
+const cubeRT = new THREE.WebGLCubeRenderTarget(384, {
   format: THREE.RGBAFormat,
   generateMipmaps: true,
   minFilter: THREE.LinearMipmapLinearFilter,
@@ -981,9 +984,29 @@ const reflectionTargets = []; // pipes register their shells here for envMap ass
 
 const BLOOM_LAYER = 1;
 const darkMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
-const savedMaterials = new Map();
 const bloomLayerObj = new THREE.Layers();
 bloomLayerObj.set(BLOOM_LAYER);
+// PERF — cached list of non-bloom meshes for selective bloom pass. Previously the
+// render loop did `scene.traverse` TWICE per frame + Map.set/get/delete keyed by uuid
+// for every mesh. That's the dominant CPU cost at 60Hz. Now: rebuild list lazily when
+// a flag is set (after spawn/despawn), and stash the original material on the mesh's
+// userData so swap-restore is O(1) per non-bloom mesh, zero Map work, zero allocations.
+const nonBloomMeshes = [];
+let nonBloomDirty = true;
+let nonBloomFrameCounter = 0;
+function markNonBloomDirty() { nonBloomDirty = true; }
+function rebuildNonBloomList() {
+  nonBloomMeshes.length = 0;
+  scene.traverse(obj => {
+    if (!obj.material) return;
+    if (bloomLayerObj.test(obj.layers) === false) {
+      if (!obj.userData) obj.userData = {};
+      obj.userData.__origMat = obj.material;
+      nonBloomMeshes.push(obj);
+    }
+  });
+  nonBloomDirty = false;
+}
 
 // Tag an object so it contributes to bloom
 function bloomTag(obj) {
@@ -5474,7 +5497,32 @@ function makeDrone() {
   warnRing.rotation.x = -Math.PI / 2;
   warnRing.position.y = -0.25;
   g.add(warnRing);
-  g.userData = { type: OB_TYPES.DRONE, rotors, w: 0.65, h: 0.4, ground: 1.2, halo: halo.material, warnRing: warnRing.material };
+  // CLARITY — big red DOWN-arrow hanging below drone signals DUCK at distance.
+  // Same red palette as BARRIER so duck = red mental rule.
+  const arrowMat = new THREE.MeshBasicMaterial({
+    color: 0xff5566, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending,
+  });
+  const arr = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.40, 4), arrowMat);
+  arr.position.set(0, -0.45, 0);
+  arr.rotation.z = Math.PI;
+  g.add(arr);
+  // GROUND TELEGRAPH STRIPE — red carpet on ground below drone's lane.
+  // Drone floats at y≈1.2, so stripe sits at player ground level for early read.
+  const groundStripe = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.2, 4.2),
+    new THREE.MeshBasicMaterial({
+      color: 0xff3344, transparent: true, opacity: 0.30,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    })
+  );
+  groundStripe.rotation.x = -Math.PI / 2;
+  groundStripe.position.set(0, -1.30, 2.2); // ground stripe below drone body
+  g.add(groundStripe);
+  g.userData = {
+    type: OB_TYPES.DRONE, rotors, w: 0.65, h: 0.4, ground: 1.2,
+    halo: halo.material, warnRing: warnRing.material,
+    arrow: arrowMat, groundStripe: groundStripe.material,
+  };
   return g;
 }
 
@@ -5520,7 +5568,34 @@ function makeFan() {
     })
   );
   g.add(hub);
-  g.userData = { type: OB_TYPES.FAN, blades: bladeAssembly, w: 1.0, h: 1.0, ground: 0, streakDisc: streakDisc.material, hub: hub.material };
+  // CLARITY — magenta X glyph (two crossed boxes) signals SWITCH LANES.
+  // Different palette + shape from cyan-up (JUMP) and red-down (DUCK) for instant read.
+  const xMat = new THREE.MeshBasicMaterial({
+    color: 0xff3ad8, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending,
+  });
+  const xBar1 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.10, 0.04), xMat);
+  xBar1.position.set(0, 0.95, 0.02);
+  xBar1.rotation.z = Math.PI / 4;
+  g.add(xBar1);
+  const xBar2 = xBar1.clone();
+  xBar2.rotation.z = -Math.PI / 4;
+  g.add(xBar2);
+  // GROUND TELEGRAPH STRIPE — magenta block ahead. Signals "wrong lane".
+  const groundStripe = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.4, 4.2),
+    new THREE.MeshBasicMaterial({
+      color: 0xff3ad8, transparent: true, opacity: 0.30,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    })
+  );
+  groundStripe.rotation.x = -Math.PI / 2;
+  groundStripe.position.set(0, -0.55, 2.2);
+  g.add(groundStripe);
+  g.userData = {
+    type: OB_TYPES.FAN, blades: bladeAssembly, w: 1.0, h: 1.0, ground: 0,
+    streakDisc: streakDisc.material, hub: hub.material,
+    arrow: xMat, groundStripe: groundStripe.material,
+  };
   return g;
 }
 
@@ -5588,14 +5663,31 @@ function makeBarrier() {
     ch.rotation.z = i % 2 === 0 ? -0.4 : 0.4;
     g.add(ch);
   }
-  // Down-pointing arrow underline on sign
+  // CLARITY — big DOWN-arrow stack signaling DUCK. Red so it never collides with
+  // the LOW_BAR cyan-green up-arrow set.
   const arrowMat = new THREE.MeshBasicMaterial({
-    color: 0xffe060, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending,
+    color: 0xff5566, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending,
   });
-  const arr = new THREE.Mesh(new THREE.ConeGeometry(0.10, 0.12, 4), arrowMat);
-  arr.position.set(0, 1.02, 0.05);
+  const arr = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.42, 4), arrowMat);
+  arr.position.set(0, 0.95, 0.05);
   arr.rotation.z = Math.PI;
   g.add(arr);
+  // Stacked second arrow above it for visual rhythm
+  const arr2 = new THREE.Mesh(new THREE.ConeGeometry(0.20, 0.30, 4), arrowMat);
+  arr2.position.set(0, 1.42, 0.05);
+  arr2.rotation.z = Math.PI;
+  g.add(arr2);
+  // GROUND TELEGRAPH STRIPE — red carpet extending toward player, "duck here"
+  const groundStripe = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.4, 4.2),
+    new THREE.MeshBasicMaterial({
+      color: 0xff3344, transparent: true, opacity: 0.32,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    })
+  );
+  groundStripe.rotation.x = -Math.PI / 2;
+  groundStripe.position.set(0, -0.12, 2.2);
+  g.add(groundStripe);
   // Strobing top warning light
   const lampHousing = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), beamMat);
   lampHousing.position.set(0, 1.92, 0);
@@ -5619,7 +5711,10 @@ function makeBarrier() {
   floorStripe.rotation.x = -Math.PI / 2;
   floorStripe.position.y = -0.15;
   g.add(floorStripe);
-  g.userData = { type: OB_TYPES.BARRIER, w: 1.0, h: 0.9, ground: 0, light, bar: beam, sign, lampGlow };
+  g.userData = {
+    type: OB_TYPES.BARRIER, w: 1.0, h: 0.9, ground: 0, light, bar: beam, sign, lampGlow,
+    arrow: arrowMat, groundStripe: groundStripe.material,
+  };
   return g;
 }
 
@@ -5662,39 +5757,76 @@ function makeLowBar() {
   g.add(halo);
   // OVERHEAD WARNING BEACON — small pulsing sphere above bar, signals "hop over"
   const beacon = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12, 10, 8),
+    new THREE.SphereGeometry(0.14, 10, 8),
     new THREE.MeshBasicMaterial({
-      color: 0xffd040, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending,
+      color: 0x66ffaa, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending,
     })
   );
-  beacon.position.y = 1.1;
+  beacon.position.y = 1.4;
   g.add(beacon);
-  // Up-pointing arrow above bar (cone) — "jump here"
+  // CLARITY — big UP-arrow stack above bar in CYAN-GREEN. Reads at distance as
+  // "jump" without confusion with duck obstacles which use red downward arrows.
   const arrowMat = new THREE.MeshBasicMaterial({
-    color: 0xffe060, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending,
+    color: 0x80ffcc, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending,
   });
-  const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.18, 4), arrowMat);
-  arrow.position.y = 0.78;
+  const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.30, 0.45, 4), arrowMat);
+  arrow.position.y = 1.05;
   g.add(arrow);
-  // Point light — local warning glow
-  const warnLight = new THREE.PointLight(CFG.C_DANGER, 1.8, 3.5, 2);
-  warnLight.position.y = 0.6;
-  g.add(warnLight);
-  g.userData = { type: OB_TYPES.LOW_BAR, w: 1.0, h: 0.5, ground: 0, beacon: beacon.material, halo: halo.material };
+  // Stacked smaller second arrow for visual rhythm
+  const arrow2 = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.34, 4), arrowMat);
+  arrow2.position.y = 1.5;
+  g.add(arrow2);
+  // GROUND TELEGRAPH STRIPE — flat additive plane extending toward player ~4 units
+  // back so player reads "jump here" earlier. Cyan-green to match arrow palette.
+  const groundStripe = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.9, 4.2),
+    new THREE.MeshBasicMaterial({
+      color: 0x66ffaa, transparent: true, opacity: 0.35,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    })
+  );
+  groundStripe.rotation.x = -Math.PI / 2;
+  groundStripe.position.set(0, -0.18, 2.2); // extend in +Z (toward player on screen)
+  g.add(groundStripe);
+  g.userData = {
+    type: OB_TYPES.LOW_BAR, w: 1.0, h: 0.5, ground: 0,
+    beacon: beacon.material, halo: halo.material,
+    arrow: arrowMat, groundStripe: groundStripe.material,
+  };
   return g;
 }
 
+// ── OBSTACLE POOL — recycles meshes by type to kill alloc churn on spawn/despawn.
+// Each spawn previously allocated 10-25 geometries+materials and removed without
+// disposing — GC spikes + GPU leak. Pool reuses + clears transient state per checkout.
+const obstaclePool = { drone: [], fan: [], barrier: [], lowbar: [] };
+function checkoutObstacle(type) {
+  const free = obstaclePool[type];
+  if (free && free.length) {
+    const m = free.pop();
+    // Reset transient userData fields that collision code mutates.
+    m.userData.cleared = false;
+    m.userData.dodged = false;
+    return m;
+  }
+  if (type === OB_TYPES.DRONE) return makeDrone();
+  if (type === OB_TYPES.FAN) return makeFan();
+  if (type === OB_TYPES.BARRIER) return makeBarrier();
+  if (type === OB_TYPES.LOW_BAR) return makeLowBar();
+  return makeDrone();
+}
+function returnObstacle(m) {
+  const t = m.userData.type;
+  if (obstaclePool[t]) obstaclePool[t].push(m);
+}
+
 function spawnObstacle(type, lane, zDist) {
-  let m;
-  if (type === OB_TYPES.DRONE) m = makeDrone();
-  else if (type === OB_TYPES.FAN) m = makeFan();
-  else if (type === OB_TYPES.BARRIER) m = makeBarrier();
-  else if (type === OB_TYPES.LOW_BAR) m = makeLowBar();
-  else m = makeDrone();
+  const m = checkoutObstacle(type);
   m.userData.lane = lane;
   m.position.set(CFG.LANE_X[lane], CFG.PLAYER_Y_BASE + m.userData.ground, -zDist);
   scene.add(m);
   obstacles.push(m);
+  markNonBloomDirty();
   return m;
 }
 
@@ -5914,6 +6046,7 @@ function spawnCan(lane, zDist) {
   c.userData.baseY = c.position.y;
   scene.add(c);
   cans.push(c);
+  markNonBloomDirty();
   return c;
 }
 
@@ -5964,6 +6097,7 @@ function spawnPowerup(typeKey, lane, zDist) {
   m.userData.lane = lane;
   scene.add(m);
   powerups.push(m);
+  markNonBloomDirty();
 }
 // Legacy alias kept for any external refs
 function spawnMagnet(lane, zDist) { spawnPowerup('MAGNET', lane, zDist); }
@@ -6336,9 +6470,11 @@ class BossBase {
       const o = obstacles[i];
       if (-o.position.z < 90) {
         scene.remove(o);
+        returnObstacle(o);
         obstacles.splice(i, 1);
       }
     }
+    markNonBloomDirty();
     for (let i = cans.length - 1; i >= 0; i--) {
       const c = cans[i];
       if (-c.position.z < 80) {
@@ -7258,8 +7394,9 @@ function gameOver() {
 }
 
 function cleanupWorld() {
-  for (const o of obstacles) scene.remove(o);
+  for (const o of obstacles) { scene.remove(o); returnObstacle(o); }
   obstacles.length = 0;
+  markNonBloomDirty();
   for (const c of cans) scene.remove(c);
   cans.length = 0;
   for (const p of powerups) scene.remove(p);
@@ -7995,6 +8132,18 @@ function updateWorld(dt) {
       const lit = (Math.floor(state.elapsed * 6) % 2) === 0;
       o.userData.light.intensity = lit ? 3 : 0.5;
     }
+    // CLARITY — pulse big floating arrow + ground telegraph stripe on every
+    // obstacle that exposes them. Quick sine breath keeps the glyph "alive"
+    // so peripheral vision picks it up before the obstacle fills the screen.
+    if (o.userData.arrow) {
+      o.userData.arrow.opacity = 0.72 + Math.sin(state.elapsed * 8 + i * 1.3) * 0.25;
+    }
+    if (o.userData.groundStripe) {
+      // Brighter when obstacle is close (telegraph reads stronger as it approaches).
+      const proximity = Math.max(0, Math.min(1, (12 + o.position.z) / 24)); // 1 far, 0 near
+      const breath = 0.18 + Math.sin(state.elapsed * 6 + i) * 0.10;
+      o.userData.groundStripe.opacity = breath + (1 - proximity) * 0.22;
+    }
     // Yaw obstacle to face along pipe tangent for grounded look
     const tdx = pathDX(olz2);
     o.rotation.y = -Math.atan2(tdx, 1) * 0.6;
@@ -8034,7 +8183,9 @@ function updateWorld(dt) {
     }
     if (o.position.z > 12) {
       scene.remove(o);
+      returnObstacle(o);
       obstacles.splice(i, 1);
+      markNonBloomDirty();
     }
   }
 
@@ -8741,9 +8892,10 @@ function updateWorld(dt) {
     }
   }
 
-  // ── CUBE REFLECTION PROBE — refresh every 6 frames (was 8) for more responsive mirror
+  // ── CUBE REFLECTION PROBE — refresh every 10 frames (was 6). At 60Hz that's ~6Hz
+  // reflection updates — still feels responsive on slow camera motion, big perf win.
   cubeFrameCounter++;
-  if (cubeFrameCounter % 6 === 0) {
+  if (cubeFrameCounter % 10 === 0) {
     pipes.forEach(p => p.group.visible = false);
     player.visible = false;
     cubeCam.position.set(player.position.x * 0.3, player.position.y + 1.5, 0);
@@ -9339,7 +9491,9 @@ function updateAmbient(dt) {
     }
     // Wobble decay
     if (u.uWobble.value > 0.001) {
-      u.uWobble.value *= Math.pow(0.18, dt);
+      // Combo slows wobble decay (kicks linger longer on streak — pipe rattles ring out).
+      const wobComboFrac = Math.min(1, (state.combo - 1) / 9);
+      u.uWobble.value *= Math.pow(0.18 + wobComboFrac * 0.10, dt);
       if (u.uWobble.value < 0.001) u.uWobble.value = 0;
     }
   }
@@ -9512,23 +9666,24 @@ function loop(now) {
   updateAmbient(dt);
 
   // ── SELECTIVE BLOOM render ──
-  // 1) Swap non-bloom materials to black so they don't contribute to bloom RT
-  scene.traverse(obj => {
-    if (!obj.material) return;
-    if (bloomLayerObj.test(obj.layers) === false) {
-      savedMaterials.set(obj.uuid, obj.material);
-      obj.material = darkMaterial;
-    }
-  });
-  // 2) Render bloom-only scene into bloomComposer
+  // 1) Rebuild non-bloom list if scene changed (spawn/despawn flips dirty flag).
+  //    Safety: also refresh every 90 frames to catch despawns / external scene edits.
+  nonBloomFrameCounter++;
+  if (nonBloomDirty || (nonBloomFrameCounter % 90 === 0)) rebuildNonBloomList();
+  // 2) Swap non-bloom materials to black via cached list (no traverse, no Map churn).
+  for (let i = 0, n = nonBloomMeshes.length; i < n; i++) {
+    const o = nonBloomMeshes[i];
+    // Sanity: if material was reassigned externally, refresh the cached ref.
+    if (o.material !== darkMaterial) o.userData.__origMat = o.material;
+    o.material = darkMaterial;
+  }
+  // 3) Render bloom-only scene into bloomComposer
   bloomComposer.render();
-  // 3) Restore materials
-  scene.traverse(obj => {
-    if (savedMaterials.has(obj.uuid)) {
-      obj.material = savedMaterials.get(obj.uuid);
-      savedMaterials.delete(obj.uuid);
-    }
-  });
+  // 4) Restore originals
+  for (let i = 0, n = nonBloomMeshes.length; i < n; i++) {
+    const o = nonBloomMeshes[i];
+    o.material = o.userData.__origMat;
+  }
   // 4) Render full scene + mix bloom in + post-fx
   composer.render();
   requestAnimationFrame(loop);
