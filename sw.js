@@ -1,5 +1,5 @@
 // Service worker — cache-first for game shell, network-first for everything else.
-const CACHE = 'chill-slide-rail-v242';
+const CACHE = 'chill-slide-rail-v243';
 // SHELL — all assets needed for instant offline + repeat-load. Three.js is now
 // vendored locally so first install caches everything; repeat loads are zero-network.
 const SHELL = [

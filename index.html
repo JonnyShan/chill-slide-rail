@@ -1001,13 +1001,20 @@ let envMapBuilt = false;
 // Res dropped 768 -> 384 (~4x cheaper). Refresh interval also bumped 6 -> 10 frames
 // in render loop. Reflections still readable on chrome pipes / wet road but the
 // frame-time saved per cube refresh is the difference between buttery and stuttery on mid GPUs.
-const cubeRT = new THREE.WebGLCubeRenderTarget(384, {
-  format: THREE.RGBAFormat,
-  generateMipmaps: true,
-  minFilter: THREE.LinearMipmapLinearFilter,
-});
-const cubeCam = new THREE.CubeCamera(0.4, 320, cubeRT);
-scene.add(cubeCam);
+// LOAD DEFER — CubeRenderTarget alloc reserves ~3.5MB GPU memory + 6 faces texture
+// init. Defer to first frame post-paint so loader hides before this fires.
+let cubeRT = null;
+let cubeCam = null;
+function ensureCubeProbe() {
+  if (cubeRT) return;
+  cubeRT = new THREE.WebGLCubeRenderTarget(384, {
+    format: THREE.RGBAFormat,
+    generateMipmaps: true,
+    minFilter: THREE.LinearMipmapLinearFilter,
+  });
+  cubeCam = new THREE.CubeCamera(0.4, 320, cubeRT);
+  scene.add(cubeCam);
+}
 let cubeFrameCounter = 0;
 const reflectionTargets = []; // pipes register their shells here for envMap assignment after first update
 
@@ -9166,9 +9173,11 @@ function updateWorld(dt) {
   //   tier 1 (med):  every 16 frames (~3.75Hz)
   //   tier 2 (low):  disabled entirely — falls back to baseline PMREM env on pipes.
   //                  Saves a full extra scene render per refresh on weakest hardware.
+  // Lazy-alloc on first use so 3.5MB GPU reservation doesn't block first paint.
   cubeFrameCounter++;
   const cubeInterval = qualityTier === 0 ? 10 : qualityTier === 1 ? 16 : 0;
   if (cubeInterval > 0 && cubeFrameCounter % cubeInterval === 0) {
+    if (!cubeRT) ensureCubeProbe();
     pipes.forEach(p => p.group.visible = false);
     player.visible = false;
     cubeCam.position.set(player.position.x * 0.3, player.position.y + 1.5, 0);
