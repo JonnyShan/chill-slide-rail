@@ -739,9 +739,9 @@ const CFG = {
   PLAYER_Y_BASE: 0.62,      // sits on top of pipe (radius + half body)
   PLAYER_HEIGHT: 1.7,
   // Camera
-  CAM_OFFSET: new THREE.Vector3(0, 3.6, 7.2),       // higher + back — see further down pipe
+  CAM_OFFSET: new THREE.Vector3(0, 3.4, 5.6),       // closer behind character for easier tracking
   CAM_LOOK_OFFSET: new THREE.Vector3(0, 0.4, -14.0), // look further ahead (was -8) so curves come into view sooner
-  CAM_LANE_FOLLOW: 0.55,    // 0=fixed center, 1=full follow
+  CAM_LANE_FOLLOW: 0.275,   // 0=fixed center, 1=full follow. Halved (was 0.55) so character stays closer to screen center on lane swap — easier to track.
   CAM_FOV: 62,
   // Spawn
   OBSTACLE_MIN_GAP: 14,     // min distance between obstacle spawns
@@ -8399,8 +8399,27 @@ function updateWorld(dt) {
             damage();
           }
         } else {
-          // fan only — same lane = damage (full lane occluder, must jump pipe)
-          damage();
+          // FAN — full-lane occluder. Player can clear by either:
+          //   1) Lane-swap to other pipe (existing)
+          //   2) Vertical hop at peak — same-lane hop arc clears top of fan
+          //   3) Lane-jump arc peak — jumpToLane mid-arc also clears
+          if (state.hop > 0.18 && state.hop < 0.85) {
+            if (!o.userData.cleared) {
+              o.userData.cleared = true;
+              state.timeSlow = 0.22;
+              state.cameraShake = Math.max(state.cameraShake, 0.08);
+              burstNearMissStreaks();
+              lightning.flashLife = Math.max(lightning.flashLife, 0.14);
+            }
+          } else if (state.jumping && state.jumpT > 0.30 && state.jumpT < 0.70) {
+            if (!o.userData.cleared) {
+              o.userData.cleared = true;
+              state.timeSlow = 0.22;
+              burstNearMissStreaks();
+            }
+          } else {
+            damage();
+          }
         }
       } else if (o.userData.lane !== state.lane && state.invuln <= 0 && !o.userData.dodged) {
         // OPPOSITE LANE pass — near-miss (player chose other pipe). Light hit-stop.
@@ -9323,7 +9342,7 @@ function updateCamera(dt) {
   const breathRateMul = 1.0 + camComboFrac * 0.35;
   camera.position.y += Math.sin(state.elapsed * 1.35 * breathRateMul) * 0.045 * breatheAmp;
   camera.position.y += Math.sin(state.elapsed * 2.21 * breathRateMul) * 0.018 * breatheAmp;
-  camera.position.x += Math.sin(state.elapsed * 0.83 * breathRateMul) * 0.03  * breatheAmp;
+  camera.position.x += Math.sin(state.elapsed * 0.83 * breathRateMul) * 0.015 * breatheAmp;     // X sway halved — easier to track character
   camera.position.z += Math.sin(state.elapsed * 1.07 * breathRateMul) * 0.025 * breatheAmp;
 
   // shake — pos jitter + roll jitter (rotational kick)
