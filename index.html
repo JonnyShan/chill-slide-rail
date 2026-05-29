@@ -11,6 +11,14 @@
 <title>CHILL SLIDE RAIL · NEO-FROST</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%2300e0ff'/><stop offset='1' stop-color='%23ff2db5'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='%230a0419'/><path d='M16 14 L16 50 M48 14 L48 50' stroke='url(%23g)' stroke-width='8' stroke-linecap='round'/><circle cx='32' cy='32' r='5' fill='%23fff'/></svg>">
+<!-- LOAD PERF — warm TCP/TLS handshake to unpkg + fonts.googleapis before script tag parses, then modulepreload three.js core so the browser starts fetching it in parallel with HTML parse. Saves 50-300ms cold load (TLS handshake + queued request). -->
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="modulepreload" href="https://unpkg.com/three@0.160.0/build/three.module.js" crossorigin>
+<link rel="modulepreload" href="https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js" crossorigin>
+<link rel="modulepreload" href="https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js" crossorigin>
+<link rel="modulepreload" href="https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/SMAAPass.js" crossorigin>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700&family=Inter:wght@600;800;900&display=swap');
 
@@ -3128,7 +3136,10 @@ function makeRain() {
   scene.add(pts);
   return { mat };
 }
-const rain = makeRain();
+// LOAD DEFER — rain is initialized post-paint (compiles shader + allocates 700 points).
+// Stub mat ref keeps consumers null-guarded until lazy init fires from main loop.
+let rain = { mat: null };
+let rainInited = false;
 
 // ── PIPE BASE MIST — vertical ribbon mist rising under pipes. 30 narrow
 // additive planes scattered along z, billowing upward, fades top + bottom.
@@ -8723,7 +8734,7 @@ function updateWorld(dt) {
   if (city.airship) {
     const a = city.airship;
     // Storm wind: airship drifts faster + sways more during heavy rain phases
-    const rainCycle = rain.mat.uniforms.uAmp.value;     // 0.45 - 1.55
+    const rainCycle = (rain.mat && rain.mat.uniforms.uAmp) ? rain.mat.uniforms.uAmp.value : 1.0;     // 0.45 - 1.55
     const airComboFrac = Math.min(1, (state.combo - 1) / 9);
     const windMul = 1.0 + (rainCycle - 1.0) * 0.4 + airComboFrac * 0.30;     // combo lifts drift ~+30%
     const bobRate = 0.8 + airComboFrac * 0.35;                               // 0.8 → 1.15
@@ -8890,7 +8901,7 @@ function updateWorld(dt) {
   const csCol = carSmoke.geo.attributes.color.array;
   const csSz = carSmoke.sz;
   // Storm wind affects all hovercars: bob amplitude grows with rainCycle peak
-  const carRainCycle = rain.mat.uniforms.uAmp.value;
+  const carRainCycle = (rain.mat && rain.mat.uniforms.uAmp) ? rain.mat.uniforms.uAmp.value : 1.0;
   const carBobAmp = 1.4 + (carRainCycle - 1.0) * 0.8;
   // Engine trail boost — at high speed/combo cars trail longer + thicker + hotter ("city accelerates with player")
   const carSpdFrac = Math.min(1, state.speed / CFG.SPEED_CAP);
@@ -9338,7 +9349,9 @@ function updateCamera(dt) {
 // ╚════════════════════════════════════════════════════════════╝
 
 function updateAmbient(dt) {
-  rain.mat.uniforms.uTime.value += dt;
+  // Rain may not be initialized yet (deferred post-paint). Guard all rain.mat refs.
+  const rainMat = rain.mat;
+  if (rainMat) rainMat.uniforms.uTime.value += dt;
   // Lantern layer — uTime drives slow rise; uCombo speeds it; uLightning paints
   // them hot white during strikes.
   if (lanterns && lanterns.mat) {
@@ -9352,7 +9365,7 @@ function updateAmbient(dt) {
   const rainComboFrac = Math.min(1, (state.combo - 1) / 9);
   const baseRainCycle = 1.0 + Math.sin(state.elapsed * (Math.PI * 2 / 40)) * 0.55;
   const rainCycle = Math.max(baseRainCycle, 0.9 + rainComboFrac * 0.4);
-  rain.mat.uniforms.uAmp.value = rainCycle;
+  if (rainMat) rainMat.uniforms.uAmp.value = rainCycle;
   // Fog density respires with rainCycle for hazier deep storm.
   // Lightning briefly dips density (atmosphere clears under bolt's electric arc).
   if (scene.fog) {
@@ -9361,13 +9374,13 @@ function updateAmbient(dt) {
     scene.fog.density += (fogTarget - scene.fog.density) * 0.04;
   }
   // Lightning paints raindrops white-hot during strikes
-  if (rain.mat.uniforms.uLightning) {
-    rain.mat.uniforms.uLightning.value = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
+  if (rainMat && rainMat.uniforms.uLightning) {
+    rainMat.uniforms.uLightning.value = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
   }
   // Rain streaks elongate with player speed (Y squish narrows at sprint)
-  if (rain.mat.uniforms.uSpeedFrac) {
+  if (rainMat && rainMat.uniforms.uSpeedFrac) {
     const tgt = Math.min(1, (state.speed || CFG.START_SPEED) / CFG.SPEED_CAP);
-    rain.mat.uniforms.uSpeedFrac.value += (tgt - rain.mat.uniforms.uSpeedFrac.value) * 0.05;
+    rainMat.uniforms.uSpeedFrac.value += (tgt - rainMat.uniforms.uSpeedFrac.value) * 0.05;
   }
   // Tie rain-on-lens droplet density + speed to current rainCycle. Idle 0.45 -> 0.30
   // amp (few drops, slow), peak 1.55 -> 0.85 amp (many drops, faster drift).
@@ -9450,7 +9463,7 @@ function updateAmbient(dt) {
   // rainCycle. Combo lifts density bonus on top of rain (mist thickens on streak).
   if (pipeMist) {
     const mMove = -dt * (state.speed || CFG.START_SPEED);
-    const rainCycle = rain.mat.uniforms.uAmp.value;     // 0.45 - 1.55
+    const rainCycle = (rain.mat && rain.mat.uniforms.uAmp) ? rain.mat.uniforms.uAmp.value : 1.0;     // 0.45 - 1.55
     const mistCombo = Math.min(1, (state.combo - 1) / 9);
     const mistDensity = (0.7 + (rainCycle - 1.0) * 0.6) * (1.0 + mistCombo * 0.30);
     for (const p of pipeMist.planes) {
@@ -9968,6 +9981,17 @@ function loop(now) {
         try {
           scene.environment = buildEnvMap();
           envMapBuilt = true;
+        } catch (e) { /* ignore */ }
+      }, 0);
+    }
+    // DEFERRED RAIN INIT — makeRain compiles shader + allocates 700 Points.
+    // Defer to setTimeout(0) so loader hides + first frame paints before this fires.
+    // Rain pops in after ~16-50ms which is imperceptible.
+    if (!rainInited) {
+      setTimeout(() => {
+        try {
+          rain = makeRain();
+          rainInited = true;
         } catch (e) { /* ignore */ }
       }, 0);
     }
