@@ -2361,7 +2361,19 @@ function makeCity() {
 
   return { instNear, instFar, strips, beams, moon, moonHalo, holoAds, bigBillboards, antennas, blinks, antTip, stars, graffiti, pyrInst, mastInst, windowPanels, heroTower, cranes, airship, skyBridges, crowdInst, radioTowers, matDistant, spireMat };
 }
-const city = makeCity();
+// LOAD DEFER — makeCity() builds ~400-800ms of geometry + textures + InstancedMeshes
+// across 23 distinct city pieces. Previously ran sync at top-level which blocked first
+// paint. Now: stub city object with null sentinels, then fire makeCity() via setTimeout(0)
+// after first composer.render() inside the main loop. Every consumer of city.X has been
+// null-guarded (cityWrap, antTip+blinks, beams, holoAds, bigBillboards, moon/moonHalo,
+// stars, instNear/instFar/strips/antennas) — see updateWorld for the guards.
+//
+// User sees first frame as: sky + pipes + player. ~50-100ms later (after browser paints
+// loader hidden + first frame), full city pops in atomically via Object.assign.
+const CITY_KEYS = ['instNear','instFar','strips','beams','moon','moonHalo','holoAds','bigBillboards','antennas','blinks','antTip','stars','graffiti','pyrInst','mastInst','windowPanels','heroTower','cranes','airship','skyBridges','crowdInst','radioTowers','matDistant','spireMat'];
+const city = {};
+for (const k of CITY_KEYS) city[k] = null;
+let cityBuilt = false;
 
 // ╔════════════════════════════════════════════════════════════╗
 // ║  WET STREET + NEON DIVIDERS + ATMOSPHERIC HAZE             ║
@@ -8520,8 +8532,11 @@ function updateWorld(dt) {
     }
   }
 
-  // city drift (slow parallax) — wrap each ring on its own period
+  // city drift (slow parallax) — wrap each ring on its own period.
+  // Null-guard added because makeCity now fires post-paint (deferred load) —
+  // any city.X may be null between first frame and ~50ms when full build finishes.
   const cityWrap = (target, period, m) => {
+    if (!target) return;
     target.position.z += m;
     if (target.position.z > period) target.position.z -= period * 2;
     if (target.position.z < -period) target.position.z += period * 2;
@@ -8647,11 +8662,11 @@ function updateWorld(dt) {
     }
   }
   // Star field slow drift (only Y axis subtle wobble — no z scroll, they're "infinite")
-  city.stars.rotation.y += dt * 0.005;
+  if (city.stars) city.stars.rotation.y += dt * 0.005;
   // ── STAR TWINKLE — global star material opacity oscillates slowly + lightning bump.
   // Single uniform write per frame (no per-vertex updates) — cheap.
   // Combo lifts twinkle rate + amplitude + base brightness — sky feels electric at high combo.
-  if (city.stars.material) {
+  if (city.stars && city.stars.material) {
     const starComboFrac = Math.min(1, (state.combo - 1) / 9);
     const twinkRate = 1.0 + starComboFrac * 0.6;                              // 1.0 → 1.6 oscillation rate
     const twinkAmp = 1.0 + starComboFrac * 0.4;                               // 1.0 → 1.4 oscillation amplitude
@@ -8665,29 +8680,31 @@ function updateWorld(dt) {
   // Antenna blink — pulse each tip via instanceColor. Lightning brightens all
   // antennae instantly during strikes.
   // Combo accelerates blink rate (4→5.8) + tightens duty cycle (0.5→0.40) — antennae race with player.
-  if (!city._blinkCol) city._blinkCol = new THREE.Color();
-  const lkAnt = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
-  const antComboFrac = Math.min(1, (state.combo - 1) / 9);
-  const antRate = 4 + antComboFrac * 1.8;
-  const antThresh = 0.50 - antComboFrac * 0.10;
-  // Combo shifts blink hue from red (warning) toward hot magenta-pink (party).
-  const antGreenBoost = antComboFrac * 0.18;
-  const antBlueBoost = antComboFrac * 0.35;
-  for (let i = 0; i < city.antTip.length; i++) {
-    const t = city.antTip[i];
-    const baseV = Math.sin(state.elapsed * antRate + t.phase) > antThresh ? 1.0 : 0.05;
-    const v = Math.min(1.0, baseV + lkAnt * 0.7);
-    city._blinkCol.setRGB(v, v * (0.2 + antGreenBoost) + lkAnt * 0.4, v * (0.25 + antBlueBoost) + lkAnt * 0.5);
-    city.blinks.setColorAt(i, city._blinkCol);
+  if (city.antTip && city.blinks) {
+    if (!city._blinkCol) city._blinkCol = new THREE.Color();
+    const lkAnt = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
+    const antComboFrac = Math.min(1, (state.combo - 1) / 9);
+    const antRate = 4 + antComboFrac * 1.8;
+    const antThresh = 0.50 - antComboFrac * 0.10;
+    // Combo shifts blink hue from red (warning) toward hot magenta-pink (party).
+    const antGreenBoost = antComboFrac * 0.18;
+    const antBlueBoost = antComboFrac * 0.35;
+    for (let i = 0; i < city.antTip.length; i++) {
+      const t = city.antTip[i];
+      const baseV = Math.sin(state.elapsed * antRate + t.phase) > antThresh ? 1.0 : 0.05;
+      const v = Math.min(1.0, baseV + lkAnt * 0.7);
+      city._blinkCol.setRGB(v, v * (0.2 + antGreenBoost) + lkAnt * 0.4, v * (0.25 + antBlueBoost) + lkAnt * 0.5);
+      city.blinks.setColorAt(i, city._blinkCol);
+    }
+    if (city.blinks.instanceColor) city.blinks.instanceColor.needsUpdate = true;
   }
-  if (city.blinks.instanceColor) city.blinks.instanceColor.needsUpdate = true;
   // spotlight beams — sway + drift. Lightning brightens beam materials.
   // Combo lifts spin rate (0.6→1.0) + baseline opacity (0.16→0.22) — beams sway harder with player.
   const lkBeams = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
   const beamComboFrac = Math.min(1, (state.combo - 1) / 9);
   const beamSpinRate = 0.6 + beamComboFrac * 0.4;
   const beamSwayAmp = 0.18 + beamComboFrac * 0.07;
-  for (const b of city.beams) {
+  if (city.beams) for (const b of city.beams) {
     b.userData.spin += dt * beamSpinRate;
     b.rotation.z = Math.sin(b.userData.spin) * beamSwayAmp;
     b.position.z += move * 0.85;
@@ -8703,7 +8720,7 @@ function updateWorld(dt) {
   const adComboFrac = Math.min(1, (state.combo - 1) / 9);
   const adPulseRate = 1.8 + adComboFrac * 1.0;
   const adBase = 0.55 + adComboFrac * 0.08;
-  for (const ad of city.holoAds) {
+  if (city.holoAds) for (const ad of city.holoAds) {
     ad.userData.pulseT += dt * (adPulseRate + lkHoloAd * 4);
     ad.material.opacity = adBase + Math.sin(ad.userData.pulseT) * 0.35 + lkHoloAd * 0.30;
     ad.position.z += move * 0.92;
@@ -8719,7 +8736,7 @@ function updateWorld(dt) {
   const bbScanRate = 1.6 + bbSpdFrac * 1.0 + bbComboFrac * 0.6;
   const bbPulseRate = 1.4 + bbComboFrac * 0.6;
   const bbPulseAmp = 0.12 + bbComboFrac * 0.06;
-  for (const bb of city.bigBillboards) {
+  if (city.bigBillboards) for (const bb of city.bigBillboards) {
     const u = bb.userData;
     bb.rotation.y += u.rotSpeed * dt * bbSpinMul;
     u.scanPhase += dt * bbScanRate;
@@ -8833,13 +8850,15 @@ function updateWorld(dt) {
     city.moon.material.opacity = Math.min(1, 0.85 + moonComboFrac * 0.10 + moonBreath + lkMoon * 0.15);
   }
   // moon drift (very slow)
-  city.moon.position.x += dt * 0.4;
-  city.moonHalo.position.x = city.moon.position.x;
-  if (city.moon.position.x > 60) { city.moon.position.x = -60; city.moonHalo.position.x = -60; }
+  if (city.moon) {
+    city.moon.position.x += dt * 0.4;
+    if (city.moonHalo) city.moonHalo.position.x = city.moon.position.x;
+    if (city.moon.position.x > 60) { city.moon.position.x = -60; if (city.moonHalo) city.moonHalo.position.x = -60; }
+  }
   // ── MOON HALO PULSE — slow radial breath + opacity flicker.
   // Two-octave sin so it never feels mechanical. Lightning boosts halo too.
   // Combo also adds subtle additional growth for skill-feedback continuity.
-  {
+  if (city.moonHalo) {
     const t = state.elapsed;
     const lkHalo = lightning.flashLife > 0 ? (lightning.flashLife / 0.22) : 0;
     const haloComboFrac = Math.min(1, (state.combo - 1) / 9);
@@ -9993,6 +10012,23 @@ function loop(now) {
           rain = makeRain();
           rainInited = true;
         } catch (e) { /* ignore */ }
+      }, 0);
+    }
+    // DEFERRED CITY BUILD — makeCity runs ~400-800ms of geometry + texture work.
+    // Fire post-paint so loader hides + first frame ships first. City pops in atomically.
+    if (!cityBuilt) {
+      setTimeout(() => {
+        try {
+          const full = makeCity();
+          // Mutate the shared city object in place so all existing references see the
+          // new values. Object.assign for atomic swap of all 23 keys at once.
+          Object.assign(city, full);
+          cityBuilt = true;
+          // Re-run bloom auto-tagger so new emissive city geometry gets BLOOM_LAYER.
+          // markNonBloomDirty triggers selective-bloom list rebuild on next frame.
+          autoTagBloom();
+          markNonBloomDirty();
+        } catch (e) { console.error('city build failed', e); }
       }, 0);
     }
   }
