@@ -1,6 +1,23 @@
 // Service worker — cache-first for game shell, network-first for everything else.
-const CACHE = 'chill-slide-rail-v241';
-const SHELL = ['./', './index.html', './manifest.webmanifest'];
+const CACHE = 'chill-slide-rail-v242';
+// SHELL — all assets needed for instant offline + repeat-load. Three.js is now
+// vendored locally so first install caches everything; repeat loads are zero-network.
+const SHELL = [
+  './', './index.html', './manifest.webmanifest',
+  './vendor/three/build/three.module.min.js',
+  './vendor/three/addons/postprocessing/EffectComposer.js',
+  './vendor/three/addons/postprocessing/RenderPass.js',
+  './vendor/three/addons/postprocessing/UnrealBloomPass.js',
+  './vendor/three/addons/postprocessing/OutputPass.js',
+  './vendor/three/addons/postprocessing/ShaderPass.js',
+  './vendor/three/addons/postprocessing/SMAAPass.js',
+  './vendor/three/addons/postprocessing/Pass.js',
+  './vendor/three/addons/postprocessing/MaskPass.js',
+  './vendor/three/addons/shaders/LuminosityHighPassShader.js',
+  './vendor/three/addons/shaders/CopyShader.js',
+  './vendor/three/addons/shaders/SMAAShader.js',
+  './vendor/three/addons/shaders/OutputShader.js',
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {}));

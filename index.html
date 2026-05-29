@@ -11,14 +11,15 @@
 <title>CHILL SLIDE RAIL · NEO-FROST</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%2300e0ff'/><stop offset='1' stop-color='%23ff2db5'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='%230a0419'/><path d='M16 14 L16 50 M48 14 L48 50' stroke='url(%23g)' stroke-width='8' stroke-linecap='round'/><circle cx='32' cy='32' r='5' fill='%23fff'/></svg>">
-<!-- LOAD PERF — warm TCP/TLS handshake to unpkg + fonts.googleapis before script tag parses, then modulepreload three.js core so the browser starts fetching it in parallel with HTML parse. Saves 50-300ms cold load (TLS handshake + queued request). -->
-<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<!-- LOAD PERF — three.js now vendored locally (vendor/three/), no CDN handshake needed.
+     Modulepreload hints kick off parallel fetch of the largest local module during HTML parse.
+     fonts.googleapis preconnect kept for the @import url() in CSS. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="modulepreload" href="https://unpkg.com/three@0.160.0/build/three.module.js" crossorigin>
-<link rel="modulepreload" href="https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js" crossorigin>
-<link rel="modulepreload" href="https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js" crossorigin>
-<link rel="modulepreload" href="https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/SMAAPass.js" crossorigin>
+<link rel="modulepreload" href="./vendor/three/build/three.module.min.js">
+<link rel="modulepreload" href="./vendor/three/addons/postprocessing/EffectComposer.js">
+<link rel="modulepreload" href="./vendor/three/addons/postprocessing/UnrealBloomPass.js">
+<link rel="modulepreload" href="./vendor/three/addons/postprocessing/SMAAPass.js">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@500;700&family=Inter:wght@600;800;900&display=swap');
 
@@ -691,8 +692,8 @@
 <script type="importmap">
 {
   "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    "three": "./vendor/three/build/three.module.min.js",
+    "three/addons/": "./vendor/three/addons/"
   }
 }
 </script>
