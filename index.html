@@ -744,8 +744,8 @@ const CFG = {
   CAM_LANE_FOLLOW: 0.275,   // 0=fixed center, 1=full follow. Halved (was 0.55) so character stays closer to screen center on lane swap — easier to track.
   CAM_FOV: 62,
   // Spawn
-  OBSTACLE_MIN_GAP: 14,     // min distance between obstacle spawns
-  OBSTACLE_MAX_GAP: 26,
+  OBSTACLE_MIN_GAP: 18,     // min distance between obstacle spawns (+30% easier)
+  OBSTACLE_MAX_GAP: 34,
   CAN_RUN_MIN: 5,
   CAN_RUN_MAX: 9,
   CAN_BOB_AMP: 0.18,
@@ -885,7 +885,7 @@ function resetRun() {
   state.jumpT = 0;
   state.hop = 0;
   state.slide = 0;
-  state.invuln = 1.2;     // grace at run start
+  state.invuln = 2.0;     // grace at run start (extended 1.2 → 2.0 for easier ramp-up)
   state.bossActive = false;
   state.bossIdx = 0;
   state.bossesBeaten = 0;
@@ -6341,7 +6341,8 @@ function spawnerTick(dt, move) {
   while (-nextObstacleZ < 270) {
     // Pick lane (sometimes both — forcing slide)
     const r = Math.random();
-    const difficulty = Math.min(1, state.elapsed / 240);
+    // Slower ramp — 240s → 320s for 30% easier curve.
+    const difficulty = Math.min(1, state.elapsed / 320);
     let lane;
     let type;
     // Distribution rebalanced — BARRIER duck-beam now 30% (was 20%) so ducking
@@ -6361,8 +6362,9 @@ function spawnerTick(dt, move) {
     }
     spawnObstacle(type, lane, -nextObstacleZ);
 
-    // Sometimes spawn paired obstacle on OPPOSITE pipe (force decision)
-    if (difficulty > 0.4 && Math.random() < 0.18) {
+    // Sometimes spawn paired obstacle on OPPOSITE pipe (force decision) —
+    // threshold raised + chance lowered for 30% easier difficulty.
+    if (difficulty > 0.55 && Math.random() < 0.10) {
       // place sibling slightly offset z
       const otherLane = 1 - lane;
       const sibZ = -nextObstacleZ + (Math.random() * 4 + 2);
@@ -6371,7 +6373,8 @@ function spawnerTick(dt, move) {
     }
 
     const gap = CFG.OBSTACLE_MIN_GAP + Math.random() * (CFG.OBSTACLE_MAX_GAP - CFG.OBSTACLE_MIN_GAP);
-    nextObstacleZ -= gap * (1 - difficulty * 0.35);
+    // Spawn density compression at peak difficulty reduced 0.35 → 0.22 (30% easier).
+    nextObstacleZ -= gap * (1 - difficulty * 0.22);
   }
 
   // Powerups — every ~120 units, random type (MAGNET / SHIELD / SCORE2X)
@@ -6379,7 +6382,8 @@ function spawnerTick(dt, move) {
     const r = Math.random();
     const typeKey = r < 0.40 ? 'MAGNET' : r < 0.75 ? 'SHIELD' : 'SCORE2X';
     spawnPowerup(typeKey, Math.random() < 0.5 ? 0 : 1, -nextMagnetZ);
-    nextMagnetZ -= 95 + Math.random() * 80;
+    // Powerup density bumped — 95+80 → 70+55 (more frequent shields/magnets/×2 for easier play).
+    nextMagnetZ -= 70 + Math.random() * 55;
   }
 }
 
@@ -7644,7 +7648,7 @@ function damage(force = false) {
     return;
   }
   state.hp--;
-  state.invuln = 1.4;
+  state.invuln = 2.0;     // +30% recovery time post-damage (1.4 → 2.0)
   state.combo = 1;
   state.comboRun = 0;
   state.cleanDist = 0;
@@ -8380,16 +8384,17 @@ function updateWorld(dt) {
       if (o.userData.lane === state.lane && state.invuln <= 0) {
         const ot = o.userData.type;
         if (ot === OB_TYPES.LOW_BAR) {
-          // need hop
-          if (state.hop > 0.18 && state.hop < 0.85) {
+          // need hop — window widened 0.18–0.85 → 0.12–0.92 for 30% easier timing.
+          if (state.hop > 0.12 && state.hop < 0.92) {
             // cleared! near-miss feel — small city flash via uLightning broadcast
             if (!o.userData.cleared) { o.userData.cleared = true; state.timeSlow = 0.22; state.cameraShake = Math.max(state.cameraShake, 0.08); burstNearMissStreaks(); lightning.flashLife = Math.max(lightning.flashLife, 0.14); }
           } else {
             damage();
           }
         } else if (ot === OB_TYPES.BARRIER || ot === OB_TYPES.DRONE) {
-          // need DUCK (slide) — overhead beam or low-flying drone
-          if (state.slide > 0.10 && state.slide < 0.92) {
+          // need DUCK (slide) — overhead beam or low-flying drone.
+          // Window widened 0.10–0.92 → 0.06–0.96 for 30% easier timing.
+          if (state.slide > 0.06 && state.slide < 0.96) {
             // cleared! widened window for forgiving duck timing — small city flash
             if (!o.userData.cleared) { o.userData.cleared = true; state.timeSlow = 0.22; state.cameraShake = Math.max(state.cameraShake, 0.08); burstNearMissStreaks(); lightning.flashLife = Math.max(lightning.flashLife, 0.14); }
           } else if (state.jumping && state.jumpT > 0.25 && state.jumpT < 0.75) {
@@ -8403,7 +8408,8 @@ function updateWorld(dt) {
           //   1) Lane-swap to other pipe (existing)
           //   2) Vertical hop at peak — same-lane hop arc clears top of fan
           //   3) Lane-jump arc peak — jumpToLane mid-arc also clears
-          if (state.hop > 0.18 && state.hop < 0.85) {
+          // Hop window widened to match LOW_BAR (30% easier).
+          if (state.hop > 0.12 && state.hop < 0.92) {
             if (!o.userData.cleared) {
               o.userData.cleared = true;
               state.timeSlow = 0.22;
